@@ -7,7 +7,7 @@ symbol = "SBIN.NS"
 df = yf.download(
     symbol,
     interval="5m",
-    period="5d",
+    period="1mo",
     progress=False
 )
 

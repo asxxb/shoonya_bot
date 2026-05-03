@@ -1,6 +1,10 @@
-2026-05-03 14:51:23,413 [INFO    ] Running connection check...
-2026-05-03 14:55:39,800 [INFO    ] Running connection check...
-2026-05-03 15:10:12,505 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SBIN_EQ.csv
-2026-05-03 15:11:23,732 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SBIN_EQ.csv
-2026-05-03 15:11:24,629 [INFO    ] 
-Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260503_1511.csv
+2026-05-03 15:28:19,750 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SBIN_EQ.csv
+2026-05-03 15:28:20,934 [INFO    ] No trades generated in backtest.
+2026-05-03 15:29:02,613 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SBIN_EQ.csv
+2026-05-03 15:29:03,811 [INFO    ] No trades generated in backtest.
+2026-05-03 15:31:10,051 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SBIN_EQ.csv
+2026-05-03 15:31:11,262 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260503_1531.csv
+2026-05-03 15:33:11,942 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SBIN_EQ.csv
+2026-05-03 15:33:22,231 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260503_1533.csv
