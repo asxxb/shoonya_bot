@@ -1,0 +1,147 @@
+"""
+core/trade_tracker.py
+Tracks open positions and writes a trade journal CSV.
+"""
+import csv
+import os
+from datetime import datetime
+import pytz
+
+from utils.logger import get_logger
+
+log = get_logger()
+IST = pytz.timezone("Asia/Kolkata")
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+
+class TradeTracker:
+    """
+    Tracks the lifecycle of a single trade:
+      ENTRY → monitor SL/TP → EXIT → log to CSV
+    """
+
+    def __init__(self):
+        self.active_trade: dict | None = None
+        self._journal_path = os.path.join(
+            DATA_DIR, f"journal_{datetime.now(IST).strftime('%Y-%m-%d')}.csv"
+        )
+        self._ensure_journal_header()
+
+    # ── Trade Lifecycle ─────────────────────────────────────────────────────────
+
+    def open_trade(
+        self,
+        side: str,           # "BUY" or "SELL"
+        symbol: str,
+        qty: int,
+        entry_price: float,
+        stop_loss: float,
+        target: float,
+        order_id: str,
+    ):
+        self.active_trade = {
+            "side":        side,
+            "symbol":      symbol,
+            "qty":         qty,
+            "entry_price": entry_price,
+            "stop_loss":   stop_loss,
+            "target":      target,
+            "order_id":    order_id,
+            "entry_time":  datetime.now(IST).isoformat(),
+            "exit_price":  None,
+            "exit_time":   None,
+            "exit_reason": None,
+            "pnl":         None,
+        }
+        log.info(
+            f"📂 Trade OPENED | {side} {qty}×{symbol} @ ₹{entry_price:.2f} | "
+            f"SL=₹{stop_loss:.2f} TP=₹{target:.2f}"
+        )
+
+    def close_trade(self, exit_price: float, reason: str) -> float:
+        """Close active trade, log it, return PnL."""
+        if not self.active_trade:
+            return 0.0
+
+        t = self.active_trade
+        qty = t["qty"]
+
+        if t["side"] == "BUY":
+            pnl = (exit_price - t["entry_price"]) * qty
+        else:
+            pnl = (t["entry_price"] - exit_price) * qty
+
+        t["exit_price"]  = exit_price
+        t["exit_time"]   = datetime.now(IST).isoformat()
+        t["exit_reason"] = reason
+        t["pnl"]         = round(pnl, 2)
+
+        emoji = "✅" if pnl >= 0 else "❌"
+        log.info(
+            f"{emoji} Trade CLOSED | {t['side']} {qty}×{t['symbol']} | "
+            f"Entry=₹{t['entry_price']:.2f} Exit=₹{exit_price:.2f} | "
+            f"PnL=₹{pnl:+.2f} | Reason={reason}"
+        )
+
+        self._write_journal(t)
+        self.active_trade = None
+        return pnl
+
+    def has_open_trade(self) -> bool:
+        return self.active_trade is not None
+
+    def check_sl_tp(self, ltp: float) -> str | None:
+        """
+        Check if LTP has hit SL or TP.
+        Returns 'SL', 'TP', or None.
+        """
+        if not self.active_trade:
+            return None
+        t = self.active_trade
+        if t["side"] == "BUY":
+            if ltp <= t["stop_loss"]:
+                return "SL"
+            if ltp >= t["target"]:
+                return "TP"
+        else:  # SELL/SHORT
+            if ltp >= t["stop_loss"]:
+                return "SL"
+            if ltp <= t["target"]:
+                return "TP"
+        return None
+
+    def current_trade_info(self) -> str:
+        if not self.active_trade:
+            return "No open trade"
+        t = self.active_trade
+        return (
+            f"{t['side']} {t['qty']}×{t['symbol']} @ ₹{t['entry_price']:.2f} | "
+            f"SL=₹{t['stop_loss']:.2f} TP=₹{t['target']:.2f}"
+        )
+
+    # ── CSV Journal ─────────────────────────────────────────────────────────────
+
+    def _ensure_journal_header(self):
+        if not os.path.exists(self._journal_path):
+            with open(self._journal_path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=self._fields())
+                writer.writeheader()
+
+    def _write_journal(self, trade: dict):
+        with open(self._journal_path, "a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=self._fields())
+            writer.writerow({k: trade.get(k, "") for k in self._fields()})
+        log.debug(f"Trade logged to {self._journal_path}")
+
+    @staticmethod
+    def _fields():
+        return [
+            "entry_time", "exit_time", "symbol", "side", "qty",
+            "entry_price", "exit_price", "stop_loss", "target",
+            "pnl", "exit_reason", "order_id",
+        ]
+
+    def journal_path(self) -> str:
+        return self._journal_path
