@@ -73,3 +73,10 @@ def summary():
         f"  Interval : {CANDLE_INTERVAL}m candles\n"
         f"{'='*50}\n"
     )
+
+
+TELEGRAM_ENABLED = os.getenv("TELEGRAM_ENABLED", "false").lower() == "true"
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")

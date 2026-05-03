@@ -10,11 +10,11 @@ Reads from: data/candles_<symbol>.csv  OR fetches live and saves.
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
-
+import json
 import argparse
 import pandas as pd
 from datetime import datetime
-
+from utils.telegram import send_telegram
 from utils.logger import get_logger
 from config import settings
 from strategies.ema_rsi_scalper import EmaRsiScalper, SIGNAL_LONG, SIGNAL_SHORT
@@ -40,7 +40,11 @@ def fetch_and_save(symbol, exchange, days):
     return df
 
 
-def run_backtest(df: pd.DataFrame, initial_capital: float = 1000.0):
+def run_backtest(
+    df: pd.DataFrame,
+    symbol: str,
+    initial_capital: float = 1000.0
+):
 
     strategy = EmaRsiScalper()
     risk = RiskManager()
@@ -231,6 +235,17 @@ def run_backtest(df: pd.DataFrame, initial_capital: float = 1000.0):
 
     results = pd.DataFrame(trades)
 
+    status_data = {
+    "bot_status": "RUNNING",
+    "capital": float(capital),
+    "daily_pnl": float(results['pnl'].sum()),
+    "active_trade": "NONE",
+    "last_update": str(datetime.now())
+    }
+
+    with open("data/status.json", "w") as f:
+        json.dump(status_data, f, indent=4)
+
     if results.empty:
         log.info("No trades generated in backtest.")
         return
@@ -241,7 +256,7 @@ def run_backtest(df: pd.DataFrame, initial_capital: float = 1000.0):
 
     print("\n" + "="*55)
 
-    print(f"  BACKTEST RESULTS — {settings.SYMBOL}")
+    print(f"  BACKTEST RESULTS — {symbol}")
 
     print("="*55)
 
@@ -279,6 +294,33 @@ def run_backtest(df: pd.DataFrame, initial_capital: float = 1000.0):
     print("\nLast 10 trades:")
 
     print(results.tail(10).to_string(index=False))
+    # ---------------------------------------------------------
+    # TELEGRAM SUMMARY
+    # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
+    # TELEGRAM SUMMARY
+    # ---------------------------------------------------------
+
+    profit_factor = (
+        wins["pnl"].sum() / abs(losses["pnl"].sum())
+        if not losses.empty and losses["pnl"].sum() != 0
+        else 0
+    )
+
+    summary_msg = (
+        f"📊 BACKTEST RESULT\n\n"
+        f"Symbol: {symbol}\n"
+        f"Candles: {len(df)}\n"
+        f"Trades: {len(results)}\n"
+        f"Win Rate: {len(wins)/len(results)*100:.1f}%\n"
+        f"Profit Factor: {profit_factor:.2f}\n"
+        f"PnL: ₹{results['pnl'].sum():.2f}\n"
+        f"Capital: ₹{capital:.2f}\n"
+        f"Return: {((capital-initial_capital)/initial_capital*100):.2f}%"
+    )
+
+    send_telegram(summary_msg)
 
     # ---------------------------------------------------------
     # SAVE RESULTS
@@ -289,7 +331,34 @@ def run_backtest(df: pd.DataFrame, initial_capital: float = 1000.0):
         f"backtest_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
     )
 
-    results.to_csv(out_path, index=False)
+    # results.to_csv(out_path, index=False)
+    results.to_csv("data/trades.csv", index=False)
+    # ---------------------------------------------------------
+    # UPDATE EQUITY CURVE
+    # ---------------------------------------------------------
+
+    capital_log = pd.DataFrame([
+        {
+            "time": str(datetime.now()),
+            "capital": capital
+        }
+    ])
+
+    if os.path.exists("data/equity.csv"):
+
+        capital_log.to_csv(
+            "data/equity.csv",
+            mode="a",
+            header=False,
+            index=False
+        )
+
+    else:
+
+        capital_log.to_csv(
+            "data/equity.csv",
+            index=False
+        )
 
     log.info(f"\nFull results saved to {out_path}")
 
@@ -310,4 +379,8 @@ if __name__ == "__main__":
     else:
         df = fetch_and_save(args.symbol, args.exchange, args.days)
 
-    run_backtest(df, initial_capital=settings.CAPITAL)
+    run_backtest(
+    df,
+    symbol=args.symbol,
+    initial_capital=settings.CAPITAL
+    )
