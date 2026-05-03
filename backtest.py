@@ -41,93 +41,257 @@ def fetch_and_save(symbol, exchange, days):
 
 
 def run_backtest(df: pd.DataFrame, initial_capital: float = 1000.0):
+
     strategy = EmaRsiScalper()
     risk = RiskManager()
 
     capital = initial_capital
     trades = []
-    in_trade = False
-    entry = sl = tp = side = qty_bt = 0
 
-    # Walk forward through candles
-    for i in range(settings.EMA_SLOW + 5, len(df)):
+    in_trade = False
+
+    entry = 0
+    sl = 0
+    tp = 0
+    side = ""
+    qty_bt = 0
+
+    original_sl = 0
+
+    # Cooldown after SL
+    cooldown = 0
+
+    # ---------------------------------------------------------
+    # Walk Forward Candle By Candle
+    # ---------------------------------------------------------
+
+    for i in range(60, len(df)):
+
         window = df.iloc[:i+1].copy()
+
         signal, info = strategy.get_signal(window)
 
-        ltp = df.iloc[i]["close"]
+        row = df.iloc[i]
 
-        # ── Exit logic ─────────────────────────────────────────────────────────
+        ltp = row["close"]
+
+        # -----------------------------------------------------
+        # Cooldown Decrement
+        # -----------------------------------------------------
+
+        if cooldown > 0:
+            cooldown -= 1
+
+        # -----------------------------------------------------
+        # TRADE MANAGEMENT
+        # -----------------------------------------------------
+
         if in_trade:
+
             hit = None
+
+            # ---------------------------------------------
+            # BUY MANAGEMENT
+            # ---------------------------------------------
+
             if side == "BUY":
-                if ltp <= sl: hit = "SL"
-                elif ltp >= tp: hit = "TP"
-            else:
-                if ltp >= sl: hit = "SL"
-                elif ltp <= tp: hit = "TP"
+
+                initial_risk = entry - original_sl
+
+                # -----------------------------------------
+                # Move SL To Breakeven
+                # -----------------------------------------
+
+                if (
+                    ltp >= entry + initial_risk
+                    and sl < entry
+                ):
+
+                    sl = entry
+
+                # -----------------------------------------
+                # Exit Checks
+                # -----------------------------------------
+
+                if ltp <= sl:
+                    hit = "SL"
+
+                elif ltp >= tp:
+                    hit = "TP"
+
+            # ---------------------------------------------
+            # SELL MANAGEMENT
+            # ---------------------------------------------
+
+            elif side == "SELL":
+
+                initial_risk = original_sl - entry
+
+                if (
+                    ltp <= entry - initial_risk
+                    and sl > entry
+                ):
+
+                    sl = entry
+
+                if ltp >= sl:
+                    hit = "SL"
+
+                elif ltp <= tp:
+                    hit = "TP"
+
+            # ---------------------------------------------
+            # EXIT TRADE
+            # ---------------------------------------------
 
             if hit:
-                pnl = (ltp - entry) * qty_bt if side == "BUY" else (entry - ltp) * qty_bt
+
+                pnl = (
+                    (ltp - entry) * qty_bt
+                    if side == "BUY"
+                    else (entry - ltp) * qty_bt
+                )
+
                 capital += pnl
+
                 trades.append({
-                    "date":  df.iloc[i]["datetime"],
-                    "side":  side,
-                    "entry": entry,
-                    "exit":  ltp,
-                    "qty":   qty_bt,
-                    "pnl":   round(pnl, 2),
-                    "hit":   hit,
-                    "cap":   round(capital, 2),
+                    "date": row["datetime"],
+                    "side": side,
+                    "entry": round(entry, 2),
+                    "exit": round(ltp, 2),
+                    "qty": qty_bt,
+                    "pnl": round(pnl, 2),
+                    "hit": hit,
+                    "cap": round(capital, 2),
                 })
+
+                # -----------------------------------------
+                # Cooldown After Loss
+                # -----------------------------------------
+
+                if pnl < 0:
+                    cooldown = 3
+
                 in_trade = False
 
-        # ── Entry logic ────────────────────────────────────────────────────────
-        if not in_trade and info:
+                continue
+
+        # -----------------------------------------------------
+        # ENTRY LOGIC
+        # -----------------------------------------------------
+
+        if not in_trade and cooldown == 0 and info:
+
             atr = info.get("atr", ltp * 0.01)
+
             if atr <= 0:
                 atr = ltp * 0.01
 
+            # ---------------------------------------------
+            # LONG ENTRY
+            # ---------------------------------------------
+
             if signal == SIGNAL_LONG:
-                qty_bt, sl, tp = risk.calculate_qty(ltp, atr)
+
+                qty_bt, sl, tp = risk.calculate_qty(
+                    ltp,
+                    atr
+                )
+
                 entry = ltp
-                side  = "BUY"
-                in_trade = True
-            elif signal == SIGNAL_SHORT:
-                qty_bt, sl, tp = risk.calculate_short_qty(ltp, atr)
-                entry = ltp
-                side  = "SELL"
+
+                original_sl = sl
+
+                side = "BUY"
+
                 in_trade = True
 
-    # ── Results ────────────────────────────────────────────────────────────────
+            # ---------------------------------------------
+            # SHORT ENTRY
+            # ---------------------------------------------
+
+            elif signal == SIGNAL_SHORT:
+
+                qty_bt, sl, tp = risk.calculate_short_qty(
+                    ltp,
+                    atr
+                )
+
+                entry = ltp
+
+                original_sl = sl
+
+                side = "SELL"
+
+                in_trade = True
+
+    # ---------------------------------------------------------
+    # RESULTS
+    # ---------------------------------------------------------
+
     results = pd.DataFrame(trades)
+
     if results.empty:
         log.info("No trades generated in backtest.")
         return
 
-    wins   = results[results["pnl"] > 0]
+    wins = results[results["pnl"] > 0]
+
     losses = results[results["pnl"] <= 0]
 
     print("\n" + "="*55)
+
     print(f"  BACKTEST RESULTS — {settings.SYMBOL}")
+
     print("="*55)
+
     print(f"  Candles    : {len(df)}")
+
     print(f"  Trades     : {len(results)}")
+
     print(f"  Win Rate   : {len(wins)/len(results)*100:.1f}%")
-    print(f"  Avg Win    : ₹{wins['pnl'].mean():.2f}" if not wins.empty else "  Avg Win    : N/A")
-    print(f"  Avg Loss   : ₹{losses['pnl'].mean():.2f}" if not losses.empty else "  Avg Loss   : N/A")
+
+    print(
+        f"  Avg Win    : ₹{wins['pnl'].mean():.2f}"
+        if not wins.empty
+        else "  Avg Win    : N/A"
+    )
+
+    print(
+        f"  Avg Loss   : ₹{losses['pnl'].mean():.2f}"
+        if not losses.empty
+        else "  Avg Loss   : N/A"
+    )
+
     print(f"  Total PnL  : ₹{results['pnl'].sum():.2f}")
+
     print(f"  Start Cap  : ₹{initial_capital:.2f}")
+
     print(f"  End Cap    : ₹{capital:.2f}")
-    print(f"  Return     : {((capital-initial_capital)/initial_capital*100):.1f}%")
+
+    print(
+        f"  Return     : "
+        f"{((capital-initial_capital)/initial_capital*100):.1f}%"
+    )
+
     print("="*55)
+
     print("\nLast 10 trades:")
+
     print(results.tail(10).to_string(index=False))
 
-    # Save results
-    out_path = os.path.join(DATA_DIR, f"backtest_{datetime.now().strftime('%Y%m%d_%H%M')}.csv")
-    results.to_csv(out_path, index=False)
-    log.info(f"\nFull results saved to {out_path}")
+    # ---------------------------------------------------------
+    # SAVE RESULTS
+    # ---------------------------------------------------------
 
+    out_path = os.path.join(
+        DATA_DIR,
+        f"backtest_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+    )
+
+    results.to_csv(out_path, index=False)
+
+    log.info(f"\nFull results saved to {out_path}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
