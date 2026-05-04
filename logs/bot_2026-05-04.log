@@ -63,3 +63,8 @@ Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_2026
 Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_1441.csv
 2026-05-04 14:41:57,346 [INFO    ] Running scanner...
 2026-05-04 14:42:09,977 [INFO    ] Scanner complete | 0 stocks
+2026-05-04 22:02:07,041 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SBIN_EQ.csv
+2026-05-04 22:02:18,657 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2202.csv
+2026-05-04 22:04:40,941 [INFO    ] Running scanner...
+2026-05-04 22:05:02,920 [INFO    ] Scanner complete | 5 stocks
