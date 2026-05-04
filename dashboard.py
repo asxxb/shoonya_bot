@@ -15,7 +15,8 @@ from scanner import scan_stock
 
 st.set_page_config(
     page_title="Shoonya Trading Dashboard",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 st.markdown(
@@ -37,34 +38,94 @@ st.markdown(
         color: var(--ink);
     }
 
-    .title-block {
-        padding: 16px 20px;
-        border-radius: 16px;
-        background: linear-gradient(120deg, #16243b, #101a2d);
-        border: 1px solid var(--border);
-        margin-bottom: 12px;
+    [data-testid="stToolbar"] {
+        display: none !important;
     }
 
-    .subtitle {
-        color: var(--muted);
-        margin-top: 6px;
+    [data-testid="stDecoration"] {
+        display: none !important;
+    }
+
+    .main-content {
+        margin-top: 0 !important;
+        padding-top: 0.3rem !important;
+    }
+
+    header {
+        display: none !important;
+    }
+
+    .st-emotion-cache-1y4p8pa {
+        padding-top: 2rem !important;
+    }
+
+    [data-testid="stAppViewContainer"] {
+        padding-top: 0.8rem !important;
+    }
+
+    .stTabs {
+        margin-top: 0.5rem !important;
+    }
+
+    html, body, [class*="css"] {
+        --spacing: 0.25rem;
+    }
+
+    .title-block {
+        padding: 2px 4px;
+        border-radius: 2px;
+        background: linear-gradient(120deg, #16243b, #101a2d);
+        border: 1px solid var(--border);
+        margin-bottom: 0.3rem;
+    }
+    
+    .title-block h3 {
         font-size: 0.95rem;
+        margin: 0;
+        color: #e5edf8;
+        font-weight: 600;
     }
 
     .section-card {
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 14px 16px 8px 16px;
-        margin-bottom: 14px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        border-radius: 3px;
+        padding: 2px 3px;
+        margin-bottom: 0.2rem;
+    }
+    
+    .section-card h3 {
+        font-size: 0.75rem;
+        margin: 2px 0;
+        font-weight: 600;
     }
 
     div[data-testid="stMetric"] {
         border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 10px 12px;
+        border-radius: 2px;
+        padding: 1px 2px !important;
         background: #0f1728;
+        min-height: auto !important;
+        gap: 0 !important;
+    }
+    
+    div[data-testid="stMetric"] > div:first-child {
+        font-size: 0.5rem !important;
+        margin-bottom: 1px !important;
+        line-height: 1 !important;
+        font-weight: 500 !important;
+    }
+    
+    div[data-testid="stMetric"] > div:nth-child(2) {
+        font-size: 0.6rem !important;
+        margin-bottom: 1px !important;
+        line-height: 1 !important;
+        font-weight: 600 !important;
+    }
+    
+    div[data-testid="stMetric"] > div:nth-child(3) {
+        font-size: 0.45rem !important;
+        line-height: 1 !important;
     }
 
     div[data-testid="stMetricLabel"],
@@ -74,22 +135,27 @@ st.markdown(
     }
 
     .stTabs [data-baseweb="tab-list"] {
-        gap: 6px;
+        gap: 3px;
         background: rgba(17, 26, 43, 0.7);
         border: 1px solid var(--border);
         padding: 4px;
-        border-radius: 12px;
+        border-radius: 6px;
+        margin-bottom: 0.3rem;
     }
 
     .stTabs [data-baseweb="tab"] {
         color: var(--muted);
         background: transparent;
-        border-radius: 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        padding: 4px 10px !important;
+        margin: 0 !important;
     }
 
     .stTabs [aria-selected="true"] {
         color: var(--ink) !important;
         background: #1a2a42 !important;
+        border-bottom: 2px solid var(--accent) !important;
     }
 
     .stSelectbox label,
@@ -98,6 +164,7 @@ st.markdown(
     .stCaption,
     label {
         color: var(--ink) !important;
+        font-size: 0.7rem;
     }
 
     div[data-baseweb="select"] > div,
@@ -106,12 +173,18 @@ st.markdown(
         background: #0f1728 !important;
         color: var(--ink) !important;
         border: 1px solid var(--border) !important;
+        font-size: 0.75rem !important;
+        padding: 3px !important;
     }
 
     .stButton button {
         background: linear-gradient(135deg, #1b2c48, #1f365a);
         color: #e9f1ff;
         border: 1px solid #35527a;
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        height: auto !important;
+        min-height: 24px;
     }
 
     .stButton button:hover {
@@ -121,19 +194,59 @@ st.markdown(
 
     .stDataFrame {
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: 3px;
     }
 
     .stAlert {
-        border-radius: 10px;
+        border-radius: 3px;
         border: 1px solid var(--border);
+        padding: 3px 6px !important;
+        margin-bottom: 0.2rem !important;
+        font-size: 0.7rem;
     }
 
     .stPlotlyChart {
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: 3px;
         background: #0f1728;
-        padding: 6px;
+        padding: 2px;
+    }
+    
+    .block-container {
+        padding-top: 0.25rem !important;
+        padding-bottom: 0.15rem !important;
+        max-width: 100% !important;
+    }
+    
+    [data-testid="stVerticalBlock"] {
+        gap: 0.15rem !important;
+    }
+    
+    [data-testid="stHorizontalBlock"] {
+        gap: 0.2rem !important;
+    }
+    
+    .stPlotlyChart > div {
+        height: 90px !important;
+    }
+    
+    div[data-testid="stDataFrame"] {
+        font-size: 0.7rem;
+        max-height: 100px;
+    }
+
+    .compact-section {
+        margin-bottom: 0.2rem !important;
+    }
+
+    [role="tabpanel"] {
+        outline: none !important;
+        padding-top: 0.2rem !important;
+    }
+
+    .stTabs > div {
+        display: flex !important;
+        flex-direction: column !important;
     }
     </style>
     """,
@@ -190,8 +303,7 @@ def safe_read_csv(path):
 st.markdown(
     """
     <div class="title-block">
-        <h2 style="margin:0; color:#e5edf8;">Shoonya Algo Trading Dashboard</h2>
-        <div class="subtitle">Live overview, data preparation, and backtesting in one place.</div>
+        <span style="font-size:0.95rem;color:#e5edf8;font-weight:600;">🚀 Shoonya Dashboard</span>
     </div>
     """,
     unsafe_allow_html=True
@@ -232,195 +344,141 @@ tab_overview, tab_scanner, tab_data, tab_backtest = st.tabs([
 ])
 
 with tab_overview:
-    st_autorefresh(
-    interval=5000,
-    key="overview_refresh"
-    )
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    col1, col2, col3, col4 = st.columns(4)
-
+    st_autorefresh(interval=5000, key="overview_refresh")
+    
     pnl_value = float(status["daily_pnl"]) if pd.notna(status["daily_pnl"]) else 0
-
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    mode_text = (
-        "🟡 PAPER"
-        if settings.PAPER_TRADE
-        else
-        "🔴 LIVE"
+    mode_text = "🟡 PAPER" if settings.PAPER_TRADE else "🔴 LIVE"
+    
+    # === TOP STATUS BAR (COMPACT) ===
+    c1, c2, c3, c4, c5 = st.columns(5, gap="xxsmall")
+    with c1: st.metric("Bot", status["bot_status"])
+    with c2: st.metric("Mode", mode_text)
+    with c3: st.metric("₹Cap", format_inr(status["capital"]))
+    with c4: st.metric("₹PnL", format_inr(pnl_value), delta=f"{pnl_value:+,.2f}")
+    with c5: st.metric("Active", status["active_trade"])
+    
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stMetric"]:has(> div:first-child:contains("Bot")),
+        div[data-testid="stMetric"]:has(> div:first-child:contains("Mode")),
+        div[data-testid="stMetric"]:has(> div:first-child:contains("₹Cap")),
+        div[data-testid="stMetric"]:has(> div:first-child:contains("₹PnL")),
+        div[data-testid="stMetric"]:has(> div:first-child:contains("Active")) {
+            font-size: 0.95rem !important;
+            color: #e5edf8 !important;
+            font-weight: 600 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
     )
-
+    
+    # === 4-COLUMN LAYOUT FOR SINGLE SCREEN ===
+    col1, col2, col3, col4 = st.columns(4, gap="xxsmall")
+    
+    # === COLUMN 1: EQUITY CHART ===
     with col1:
-        st.metric(
-            "Bot Status",
-            status["bot_status"]
-        )
-
+        st.markdown('<div class="section-card"><h3>Equity Curve</h3>', unsafe_allow_html=True)
+        if os.path.exists(EQUITY_FILE):
+            equity_df = safe_read_csv(EQUITY_FILE)
+            if not equity_df.empty and {"time", "capital"}.issubset(equity_df.columns):
+                equity_df["time"] = pd.to_datetime(equity_df["time"], errors="coerce")
+                equity_df = equity_df.dropna(subset=["time", "capital"])
+                fig = px.line(equity_df, x="time", y="capital")
+                fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), height=100, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#d7e2f3", size=6), showlegend=False)
+                fig.update_traces(line=dict(color="#34d399", width=1.5))
+                st.plotly_chart(fig, use_container_width=True)
+            else: st.caption("No equity data", help="Equity curve will appear here")
+        else: st.caption("No equity file")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # === COLUMN 2: PERFORMANCE METRICS ===
     with col2:
-        st.metric(
-            "Trade Mode",
-            mode_text
-        )
-
-    with col3:
-        st.metric(
-            "Capital",
-            format_inr(status["capital"])
-        )
-
-    with col4:
-        st.metric(
-            "Daily PnL",
-            format_inr(pnl_value),
-            delta=f"{pnl_value:+,.2f}"
-        )
-
-    with col5:
-        st.metric(
-            "Active Trade",
-            status["active_trade"]
-        )
-
-    last_update = status.get("last_update") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    st.caption(f"Status Last Update: {last_update}")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.subheader("Equity Curve")
-    if os.path.exists(EQUITY_FILE):
-        equity_df = safe_read_csv(EQUITY_FILE)
-        if not equity_df.empty and {"time", "capital"}.issubset(equity_df.columns):
-            equity_df["time"] = pd.to_datetime(equity_df["time"], errors="coerce")
-            equity_df = equity_df.dropna(subset=["time", "capital"])
-
-            fig = px.line(
-                equity_df,
-                x="time",
-                y="capital",
-                title="Capital Growth"
-            )
-            fig.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#d7e2f3"),
-                title_font=dict(color="#d7e2f3"),
-                margin=dict(l=20, r=20, t=40, b=20)
-            )
-            fig.update_traces(line=dict(color="#34d399", width=2.2))
-            st.plotly_chart(fig, width='stretch')
-        else:
-            st.info("Equity file exists but has no usable records yet.")
-    else:
-        st.info("No equity data found.")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.subheader("Trade History")
-    if os.path.exists(TRADES_FILE):
-        trades_df = safe_read_csv(TRADES_FILE)
-
-        if not trades_df.empty:
-            if "date" in trades_df.columns:
-                trades_view = trades_df.sort_values(by="date", ascending=False)
-            else:
-                trades_view = trades_df.copy()
-
-            st.dataframe(trades_view, width='stretch', height=320)
-
-            if "pnl" in trades_df.columns:
+        st.markdown('<div class="section-card"><h3>Performance</h3>', unsafe_allow_html=True)
+        if os.path.exists(TRADES_FILE):
+            trades_df = safe_read_csv(TRADES_FILE)
+            if not trades_df.empty and "pnl" in trades_df.columns:
                 trades_df["pnl"] = pd.to_numeric(trades_df["pnl"], errors="coerce").fillna(0)
                 wins = trades_df[trades_df["pnl"] > 0]
                 losses = trades_df[trades_df["pnl"] <= 0]
                 total_trades = len(trades_df)
-
                 win_rate = (len(wins) / total_trades * 100) if total_trades > 0 else 0
-                losses_sum = losses["pnl"].sum()
-
-                if losses.empty or losses_sum == 0:
-                    profit_factor = "INF" if wins["pnl"].sum() > 0 else "0.00"
-                else:
-                    profit_factor = f"{(wins['pnl'].sum() / abs(losses_sum)):.2f}"
-
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("Trades", total_trades)
-                with col2:
-                    st.metric("Win Rate", f"{win_rate:.1f}%")
-                with col3:
-                    st.metric("Profit Factor", profit_factor)
-                
+                total_pnl = trades_df["pnl"].sum()
                 avg_win = wins["pnl"].mean() if not wins.empty else 0
                 avg_loss = losses["pnl"].mean() if not losses.empty else 0
                 expectancy = (win_rate / 100) * avg_win + ((100 - win_rate) / 100) * avg_loss
+                pf = f"{(wins['pnl'].sum() / abs(losses['pnl'].sum())):.2f}" if not losses.empty and losses['pnl'].sum() != 0 else "0"
+                rr = abs(avg_win / avg_loss) if avg_loss != 0 else 0
                 
-                with col4:
-                    st.metric("Expectancy", f"₹{expectancy:.2f}")
-            
-            if "pnl" in trades_df.columns:
                 equity = 0
                 peak = 0
                 max_dd = 0
                 for _, row in trades_df.iterrows():
                     equity += row["pnl"]
                     peak = max(peak, equity)
-                    dd = peak - equity
-                    max_dd = max(max_dd, dd)
+                    max_dd = max(max_dd, peak - equity)
                 
-                total_pnl = trades_df["pnl"].sum()
-                avg_pnl = trades_df["pnl"].mean()
+                m1, m2 = st.columns(2, gap="xxsmall")
+                with m1: st.metric("Trades", total_trades)
+                with m2: st.metric("Win%", f"{win_rate:.0f}%")
                 
-                st.markdown("---")
-                st.subheader("📊 Professional Performance Metrics")
-                m1, m2, m3, m4 = st.columns(4)
-                with m1:
-                    st.metric("Total P&L", f"₹{total_pnl:,.2f}")
-                with m2:
-                    st.metric("Avg P&L/Trade", f"₹{avg_pnl:,.2f}")
-                with m3:
-                    st.metric("Max Drawdown", f"₹{max_dd:,.2f}")
-                with m4:
-                    rr = abs(avg_win / avg_loss) if avg_loss != 0 else 0
-                    st.metric("R:R Ratio", f"{rr:.2f}:1")
+                m3, m4 = st.columns(2, gap="xxsmall")
+                with m3: st.metric("P&L", f"₹{total_pnl:.0f}")
+                with m4: st.metric("PF", pf)
+                
+                m5, m6 = st.columns(2, gap="xxsmall")
+                with m5: st.metric("R:R", f"{rr:.1f}")
+                with m6: st.metric("MaxDD", f"₹{max_dd:.0f}")
+                
+                m7, m8 = st.columns(2, gap="xxsmall")
+                with m7: st.metric("Exp", f"₹{expectancy:.1f}")
+                with m8: st.metric("Avg", f"₹{trades_df['pnl'].mean():.1f}")
+            else: st.caption("No trades yet")
+        else: st.caption("No trades file")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # === COLUMN 3: RECENT TRADES ===
+    with col3:
+        st.markdown('<div class="section-card"><h3>Recent Trades</h3>', unsafe_allow_html=True)
+        if os.path.exists(TRADES_FILE):
+            trades_df = safe_read_csv(TRADES_FILE)
+            if not trades_df.empty:
+                if "date" in trades_df.columns:
+                    trades_df = trades_df.sort_values("date", ascending=False).head(8)
+                st.dataframe(trades_df, use_container_width=True, hide_index=True)
+            else: st.caption("No trades")
+        else: st.caption("No file")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # === COLUMN 4: CONTROLS & INFO ===
+    with col4:
+        st.markdown('<div class="section-card"><h3>Trade Mode</h3>', unsafe_allow_html=True)
+        current_mode = settings.get_trade_mode()
+        mode_label = "🟡 PAPER" if current_mode else "🔴 LIVE"
+        
+        cols_info = st.columns(1)
+        st.info(f"**Mode:** {mode_label}", icon="⚙️")
+        
+        toggle = st.toggle("Paper Trade", value=current_mode, key="mode_toggle")
+        if toggle != current_mode:
+            settings.set_paper_trade_mode(toggle)
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        st.markdown('<div class="section-card"><h3>Stats</h3>', unsafe_allow_html=True)
+        if os.path.exists(TRADES_FILE):
+            trades_df = safe_read_csv(TRADES_FILE)
+            if not trades_df.empty:
+                st.metric("Total Trades", len(trades_df))
+                if "pnl" in trades_df.columns:
+                    trades_df["pnl"] = pd.to_numeric(trades_df["pnl"], errors="coerce")
+                    st.metric("Total P&L", f"₹{trades_df['pnl'].sum():.0f}")
             else:
-                st.info("Trade records loaded, but 'pnl' column is missing.")
+                st.caption("No data available")
         else:
-            st.info("Trade history file is empty.")
-    else:
-        st.info("No trade history found.")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-    # ---------------------------------------------------
-    # TRADE MODE SWITCH
-    # ---------------------------------------------------
-
-    st.subheader("Trading Mode")
-
-    current_mode = settings.get_trade_mode()
-
-    mode_label = (
-        "🟡 PAPER TRADE"
-        if current_mode
-        else
-        "🔴 LIVE TRADE"
-    )
-
-    st.info(f"Current Mode: {mode_label}")
-
-    toggle = st.toggle(
-        "Enable Paper Trade",
-        value=current_mode
-    )
-
-    if toggle != current_mode:
-
-        settings.set_paper_trade_mode(toggle)
-
-        st.success(
-            "Trading mode updated successfully."
-        )
-
-        st.rerun()
+            st.caption("No file")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # ---------------------------------------------------
     # MOMENTUM SCANNER TAB
@@ -942,4 +1000,4 @@ with tab_backtest:
             st.error(f"Error running backtest: {e}")
     st.markdown("</div>", unsafe_allow_html=True)
 
-st.caption(f"Dashboard Refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+st.caption(f"Updated: {datetime.now().strftime('%H:%M:%S')}")
