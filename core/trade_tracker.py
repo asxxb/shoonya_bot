@@ -6,8 +6,9 @@ import csv
 import os
 from datetime import datetime
 import pytz
-
+import json
 from utils.logger import get_logger
+from utils.telegram import telegram
 
 log = get_logger()
 IST = pytz.timezone("Asia/Kolkata")
@@ -60,6 +61,16 @@ class TradeTracker:
             f"SL=₹{stop_loss:.2f} TP=₹{target:.2f}"
         )
 
+        telegram.send(
+            f"🚀 *TRADE OPENED*\n\n"
+            f"Symbol: {symbol}\n"
+            f"Side: {side}\n"
+            f"Qty: {qty}\n"
+            f"Entry: ₹{entry_price:.2f}\n"
+            f"SL: ₹{stop_loss:.2f}\n"
+            f"TP: ₹{target:.2f}"
+        )
+
     def close_trade(self, exit_price: float, reason: str) -> float:
         """Close active trade, log it, return PnL."""
         if not self.active_trade:
@@ -83,6 +94,15 @@ class TradeTracker:
             f"{emoji} Trade CLOSED | {t['side']} {qty}×{t['symbol']} | "
             f"Entry=₹{t['entry_price']:.2f} Exit=₹{exit_price:.2f} | "
             f"PnL=₹{pnl:+.2f} | Reason={reason}"
+        )
+
+        telegram.send(
+            f"📕 *TRADE CLOSED*\n\n"
+            f"Symbol: {t['symbol']}\n"
+            f"Side: {t['side']}\n"
+            f"Exit: ₹{exit_price:.2f}\n"
+            f"PnL: ₹{pnl:+.2f}\n"
+            f"Reason: {reason}"
         )
 
         self._write_journal(t)

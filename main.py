@@ -9,7 +9,8 @@ Usage:
 """
 import sys
 import os
-
+import signal
+from utils.telegram import telegram
 # Ensure project root is in path
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -38,10 +39,47 @@ def check_mode():
 
 
 def run_bot():
-    from core.engine import TradingEngine
-    engine = TradingEngine()
-    engine.start()
 
+    from core.engine import TradingEngine
+
+    engine = TradingEngine()
+
+    telegram.send(
+
+        "🤖 *Algo Bot Started*\n\n"
+
+        f"Mode: {'🟡 PAPER' if settings.PAPER_TRADE else '🔴 LIVE'}\n"
+
+        f"Capital: ₹{settings.CAPITAL:,.0f}\n"
+
+        f"Symbol: {settings.SYMBOL}\n"
+
+        "Status: RUNNING"
+
+    )
+
+    try:
+
+        engine.start()
+
+    except Exception as e:
+
+        telegram.send(
+
+            f"❌ *Bot Crashed*\n\n{str(e)}"
+
+        )
+
+        raise
+
+
+def shutdown_handler(sig, frame):
+
+    telegram.send(
+        "🛑 *Algo Bot Stopped*"
+    )
+
+    sys.exit(0)
 
 def main():
     args = sys.argv[1:]
@@ -55,4 +93,15 @@ def main():
 
 
 if __name__ == "__main__":
+
+    signal.signal(
+        signal.SIGINT,
+        shutdown_handler
+    )
+
+    signal.signal(
+        signal.SIGTERM,
+        shutdown_handler
+    )
+
     main()

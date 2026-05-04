@@ -1,0 +1,25 @@
+{
+  "last_scan": "2026-05-04 01:10:14",
+  "results": [
+    {
+      "symbol": "NHPC",
+      "close": 83.25,
+      "rsi": 66.24,
+      "rel_volume": 2.0,
+      "change_pct": -0.04,
+      "trend_strength": 0.0023,
+      "score": 7,
+      "sentiment": 0.0
+    },
+    {
+      "symbol": "UCOBANK",
+      "close": 26.79,
+      "rsi": 56.83,
+      "rel_volume": 1.49,
+      "change_pct": -0.15,
+      "trend_strength": 0.0031,
+      "score": 7,
+      "sentiment": 0.0
+    }
+  ]
+}

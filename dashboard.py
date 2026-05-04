@@ -3,10 +3,12 @@ import json
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+from config import settings
+from core.sentiment import SentimentAnalyzer
 from streamlit_autorefresh import st_autorefresh
 import subprocess
 from datetime import datetime
-
+from scanner import scan_stock
 # ---------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------
@@ -179,10 +181,7 @@ def safe_read_csv(path):
 # AUTO REFRESH
 # ---------------------------------------------------
 
-st_autorefresh(
-    interval=5000,
-    key="dashboard_refresh"
-)
+
 
 # ---------------------------------------------------
 # TITLE
@@ -223,26 +222,64 @@ status = {
 # TOP METRICS
 # ---------------------------------------------------
 
-tab_overview, tab_data, tab_backtest = st.tabs([
+tab_overview, tab_scanner, tab_data, tab_backtest = st.tabs([
+
     "Overview",
+    "Momentum Scanner",
     "Fetch Data",
     "Run Backtest"
+
 ])
 
 with tab_overview:
+    st_autorefresh(
+    interval=5000,
+    key="overview_refresh"
+    )
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
 
     pnl_value = float(status["daily_pnl"]) if pd.notna(status["daily_pnl"]) else 0
 
+    col1, col2, col3, col4, col5 = st.columns(5)
+
+    mode_text = (
+        "🟡 PAPER"
+        if settings.PAPER_TRADE
+        else
+        "🔴 LIVE"
+    )
+
     with col1:
-        st.metric("Bot Status", status["bot_status"])
+        st.metric(
+            "Bot Status",
+            status["bot_status"]
+        )
+
     with col2:
-        st.metric("Capital", format_inr(status["capital"]))
+        st.metric(
+            "Trade Mode",
+            mode_text
+        )
+
     with col3:
-        st.metric("Daily PnL", format_inr(pnl_value), delta=f"{pnl_value:+,.2f}")
+        st.metric(
+            "Capital",
+            format_inr(status["capital"])
+        )
+
     with col4:
-        st.metric("Active Trade", status["active_trade"])
+        st.metric(
+            "Daily PnL",
+            format_inr(pnl_value),
+            delta=f"{pnl_value:+,.2f}"
+        )
+
+    with col5:
+        st.metric(
+            "Active Trade",
+            status["active_trade"]
+        )
 
     last_update = status.get("last_update") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.caption(f"Status Last Update: {last_update}")
@@ -270,7 +307,7 @@ with tab_overview:
                 margin=dict(l=20, r=20, t=40, b=20)
             )
             fig.update_traces(line=dict(color="#34d399", width=2.2))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info("Equity file exists but has no usable records yet.")
     else:
@@ -288,7 +325,7 @@ with tab_overview:
             else:
                 trades_view = trades_df.copy()
 
-            st.dataframe(trades_view, use_container_width=True, height=320)
+            st.dataframe(trades_view, width='stretch', height=320)
 
             if "pnl" in trades_df.columns:
                 trades_df["pnl"] = pd.to_numeric(trades_df["pnl"], errors="coerce").fillna(0)
@@ -319,24 +356,379 @@ with tab_overview:
         st.info("No trade history found.")
     st.markdown("</div>", unsafe_allow_html=True)
 
+
+    # ---------------------------------------------------
+    # TRADE MODE SWITCH
+    # ---------------------------------------------------
+
+    st.subheader("Trading Mode")
+
+    current_mode = settings.get_trade_mode()
+
+    mode_label = (
+        "🟡 PAPER TRADE"
+        if current_mode
+        else
+        "🔴 LIVE TRADE"
+    )
+
+    st.info(f"Current Mode: {mode_label}")
+
+    toggle = st.toggle(
+        "Enable Paper Trade",
+        value=current_mode
+    )
+
+    if toggle != current_mode:
+
+        settings.set_paper_trade_mode(toggle)
+
+        st.success(
+            "Trading mode updated successfully."
+        )
+
+        st.rerun()
+
+    # ---------------------------------------------------
+    # MOMENTUM SCANNER TAB
+    # ---------------------------------------------------
+
+# with tab_scanner:
+
+#         st.markdown(
+#             '<div class="section-card">',
+#             unsafe_allow_html=True
+#         )
+
+#         st.subheader("Live Momentum Scanner")
+
+#         # -----------------------------------------
+#         # AUTO REFRESH OPTION
+#         # -----------------------------------------
+
+#         scanner_refresh = st.checkbox(
+#             "Auto Refresh Scanner",
+#             value=False
+#         )
+
+#         # -----------------------------------------
+#         # BUTTON
+#         # -----------------------------------------
+
+#         scan_button = st.button(
+#             "Run Scanner",
+#             width='stretch'
+#         )
+
+#         # -----------------------------------------
+#         # RUN SCANNER ONLY ON CLICK
+#         # -----------------------------------------
+
+#         should_scan = False
+
+#         if scan_button:
+#             should_scan = True
+
+#         elif (
+#             scanner_refresh
+#             and "last_scan_time"
+#             not in st.session_state
+#         ):
+#             should_scan = True
+
+#         # -----------------------------------------
+#         # AUTO REFRESH TIMER
+#         # -----------------------------------------
+
+#         if scanner_refresh:
+
+#             st_autorefresh(
+#                 interval=60000,
+#                 key="scanner_refresh"
+#             )
+
+#         # -----------------------------------------
+#         # RUN SCANNER
+#         # -----------------------------------------
+
+#         if should_scan:
+
+#             scanner_results = []
+
+#             sentiment_analyzer = (
+#                 SentimentAnalyzer()
+#             )
+
+#             progress = st.progress(0)
+
+#             for i, stock in enumerate(WATCHLIST):
+
+#                 result = scan_stock(stock)
+
+#                 if result:
+
+#                     # -----------------------------
+#                     # SENTIMENT
+#                     # -----------------------------
+
+#                     sentiment = (
+
+#                         sentiment_analyzer
+#                         .get_sentiment(stock)
+
+#                     )
+
+#                     result["sentiment"] = round(
+#                         sentiment,
+#                         2
+#                     )
+
+#                     # -----------------------------
+#                     # FILTER
+#                     # -----------------------------
+
+#                     if (
+
+#                         result["score"] >= 7
+
+#                         and
+
+#                         result["change_pct"] > -0.3
+
+#                     ):
+
+#                         scanner_results.append(
+#                             result
+#                         )
+
+#                 progress.progress(
+#                     (i + 1) / len(WATCHLIST)
+#                 )
+
+#             # -------------------------------------
+#             # SORT
+#             # -------------------------------------
+
+#             scanner_results = sorted(
+
+#                 scanner_results,
+
+#                 key=lambda x: x["score"],
+
+#                 reverse=True
+
+#             )
+
+#             # -------------------------------------
+#             # SAVE TO SESSION
+#             # -------------------------------------
+
+#             st.session_state[
+#                 "scanner_results"
+#             ] = scanner_results
+
+#             st.session_state[
+#                 "last_scan_time"
+#             ] = datetime.now().strftime(
+#                 "%H:%M:%S"
+#             )
+
+#         # -----------------------------------------
+#         # DISPLAY CACHED RESULTS
+#         # -----------------------------------------
+
+#         if "scanner_results" in st.session_state:
+
+#             scanner_results = (
+#                 st.session_state[
+#                     "scanner_results"
+#                 ]
+#             )
+
+#             if scanner_results:
+
+#                 scanner_df = pd.DataFrame(
+#                     scanner_results
+#                 )
+
+#                 st.success(
+
+#                     f"Found "
+#                     f"{len(scanner_df)} "
+#                     f"momentum stocks"
+
+#                 )
+
+#                 st.dataframe(
+
+#                     scanner_df,
+
+#                     use_container_width=True
+
+#                 )
+
+#                 # ---------------------------------
+#                 # TOP STOCK
+#                 # ---------------------------------
+
+#                 top_stock = (
+#                     scanner_df.iloc[0]
+#                 )
+
+#                 st.metric(
+
+#                     "Top Momentum Stock",
+
+#                     top_stock["symbol"],
+
+#                     delta=f"{top_stock['change_pct']}%"
+
+#                 )
+
+#                 # ---------------------------------
+#                 # LAST SCAN
+#                 # ---------------------------------
+
+#                 st.caption(
+
+#                     f"Last Scan: "
+#                     f"{st.session_state['last_scan_time']}"
+
+#                 )
+
+#             else:
+
+#                 st.warning(
+#                     "No strong momentum stocks found."
+#                 )
+
+#         st.markdown(
+#             "</div>",
+#             unsafe_allow_html=True
+#         )
+
+
+with tab_scanner:
+
+    st.markdown(
+        '<div class="section-card">',
+        unsafe_allow_html=True
+    )
+
+    st.subheader(
+        "Live Momentum Scanner"
+    )
+
+    scanner_file = os.path.join(
+        DATA_DIR,
+        "scanner_results.json"
+    )
+
+    if os.path.exists(scanner_file):
+
+        with open(scanner_file, "r") as f:
+
+            data = json.load(f)
+
+        scanner_results = data.get(
+            "results",
+            []
+        )
+
+        last_scan = data.get(
+            "last_scan",
+            "Unknown"
+        )
+
+        if scanner_results:
+
+            scanner_df = pd.DataFrame(
+                scanner_results
+            )
+
+            st.success(
+
+                f"Found "
+                f"{len(scanner_df)} "
+                f"momentum stocks"
+
+            )
+
+            st.dataframe(
+
+                scanner_df,
+
+                width='stretch'
+
+            )
+
+            top_stock = (
+                scanner_df.iloc[0]
+            )
+
+            st.metric(
+
+                "Top Momentum Stock",
+
+                top_stock["symbol"],
+
+                delta=f"{top_stock['change_pct']}%"
+
+            )
+
+        else:
+
+            st.warning(
+                "No strong momentum stocks found."
+            )
+
+        st.caption(
+            f"Last Scan: {last_scan}"
+        )
+
+    else:
+
+        st.info(
+            "Scanner results not available yet."
+        )
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True
+    )
+    
 with tab_data:
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="section-card">',
+        unsafe_allow_html=True
+    )
+
     st.subheader("Fetch Stock Data")
+
     stock_input = st.selectbox(
         "Select Stock",
         WATCHLIST,
         key="fetch_stock"
     )
 
-    fetch_button = st.button("Fetch Data", use_container_width=True)
+    fetch_button = st.button(
+        "Fetch Data",
+        width='stretch'
+    )
 
     if fetch_button:
+
         import yfinance as yf
 
         try:
+
             symbol = f"{stock_input.upper()}.NS"
 
-            with st.spinner(f"Fetching {symbol}..."):
+            with st.spinner(
+                f"Fetching {symbol}..."
+            ):
+
                 df = yf.download(
                     symbol,
                     interval="5m",
@@ -344,40 +736,137 @@ with tab_data:
                     progress=False
                 )
 
+            # -----------------------------------------
+            # FIX MULTIINDEX
+            # -----------------------------------------
+
             if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
+
+                df.columns = (
+                    df.columns.get_level_values(0)
+                )
+
+            # -----------------------------------------
+            # FORMAT DATA
+            # -----------------------------------------
 
             df.reset_index(inplace=True)
+
             df.rename(columns={
+
                 "Datetime": "datetime",
                 "Open": "open",
                 "High": "high",
                 "Low": "low",
                 "Close": "close",
                 "Volume": "volume"
+
             }, inplace=True)
 
-            required_columns = ["datetime", "open", "high", "low", "close", "volume"]
+            required_columns = [
+
+                "datetime",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume"
+
+            ]
+
             if not set(required_columns).issubset(df.columns):
-                st.error("Downloaded data did not contain expected OHLCV columns.")
+
+                st.error(
+                    "Downloaded data missing OHLCV columns."
+                )
+
             else:
+
                 df = df[required_columns]
 
-                for col in ["open", "high", "low", "close", "volume"]:
-                    df[col] = pd.to_numeric(df[col], errors="coerce")
+                for col in [
+
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "volume"
+
+                ]:
+
+                    df[col] = pd.to_numeric(
+                        df[col],
+                        errors="coerce"
+                    )
 
                 df.dropna(inplace=True)
 
-                os.makedirs(DATA_DIR, exist_ok=True)
-                filename = os.path.join(DATA_DIR, f"candles_{stock_input.upper()}_EQ.csv")
-                df.to_csv(filename, index=False)
+                # -----------------------------------------
+                # SAVE SESSION STATE
+                # -----------------------------------------
 
-                st.success(f"Saved {len(df)} candles to {filename}")
-                st.dataframe(df.tail(10), use_container_width=True)
+                st.session_state["fetched_df"] = df
+
+                st.session_state[
+                    "fetched_stock"
+                ] = stock_input
+
+                # -----------------------------------------
+                # SAVE CSV
+                # -----------------------------------------
+
+                os.makedirs(
+                    DATA_DIR,
+                    exist_ok=True
+                )
+
+                filename = os.path.join(
+
+                    DATA_DIR,
+                    f"candles_{stock_input.upper()}_EQ.csv"
+
+                )
+
+                df.to_csv(
+                    filename,
+                    index=False
+                )
+
+                st.success(
+                    f"Saved {len(df)} candles "
+                    f"to {filename}"
+                )
 
         except Exception as e:
+
             st.error(f"Error: {e}")
-    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---------------------------------------------------
+    # SHOW FETCHED DATA PERSISTENTLY
+    # ---------------------------------------------------
+
+    if "fetched_df" in st.session_state:
+
+        st.success(
+            f"Showing cached data for "
+            f"{st.session_state['fetched_stock']}"
+        )
+
+        st.dataframe(
+
+            st.session_state[
+                "fetched_df"
+            ].tail(10),
+
+            width='stretch'
+
+        )
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True
+    )
+
 
 with tab_backtest:
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
@@ -389,7 +878,7 @@ with tab_backtest:
         key="backtest_stock"
     )
 
-    run_backtest = st.button("Run Backtest", use_container_width=True)
+    run_backtest = st.button("Run Backtest", width='stretch')
 
     if run_backtest:
         try:

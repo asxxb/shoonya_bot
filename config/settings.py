@@ -3,9 +3,31 @@ config/settings.py
 Loads and validates all environment variables.
 """
 import os
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
+
+RUNTIME_CONFIG = "data/runtime_config.json"
+
+paper_trade_runtime = True
+
+if os.path.exists(RUNTIME_CONFIG):
+
+    try:
+
+        with open(RUNTIME_CONFIG, "r") as f:
+
+            runtime_data = json.load(f)
+
+            paper_trade_runtime = runtime_data.get(
+                "paper_trade",
+                True
+            )
+
+    except Exception:
+
+        pass
 
 def _get(key, default=None, required=False, cast=str):
     val = os.getenv(key, default)
@@ -47,7 +69,8 @@ ATR_MULTIPLIER      = _get("ATR_MULTIPLIER",      default="1.5",   cast=float)
 CANDLE_INTERVAL     = _get("CANDLE_INTERVAL",     default="5",     cast=int)
 
 # ── Mode ───────────────────────────────────────────────────────────────────────
-PAPER_TRADE         = _get("PAPER_TRADE",         default="true").lower() == "true"
+# PAPER_TRADE         = _get("PAPER_TRADE",         default="true").lower() == "true"
+PAPER_TRADE = paper_trade_runtime
 LOG_LEVEL           = _get("LOG_LEVEL",           default="INFO")
 
 # ── Derived ────────────────────────────────────────────────────────────────────
@@ -80,3 +103,49 @@ TELEGRAM_ENABLED = os.getenv("TELEGRAM_ENABLED", "false").lower() == "true"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
+
+WATCHLIST = [
+
+    "SBIN-EQ",
+    "NHPC-EQ",
+    "SUZLON-EQ",
+    "YESBANK-EQ",
+    "IDFCFIRSTB-EQ",
+    "UCOBANK-EQ",
+    "IREDA-EQ",
+    "RVNL-EQ",
+    "NBCC-EQ",
+    "IRFC-EQ",
+    "PNB-EQ",
+    "BANKBARODA-EQ",
+    "SAIL-EQ",
+    "JIOFIN-EQ"
+
+]
+
+FINNHUB_API_KEY = os.getenv(
+    "FINNHUB_API_KEY"
+)
+
+# ---------------------------------------------------
+# Runtime Mode Helpers
+# ---------------------------------------------------
+
+def set_paper_trade_mode(enabled: bool):
+
+    global PAPER_TRADE
+
+    PAPER_TRADE = enabled
+
+    data = {
+        "paper_trade": enabled
+    }
+
+    with open(RUNTIME_CONFIG, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def get_trade_mode():
+
+    return PAPER_TRADE
