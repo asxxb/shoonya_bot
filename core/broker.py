@@ -77,6 +77,9 @@ class ShoonyaBroker:
         # Live ticks store
         self.live_ticks = {}
 
+        # Heartbeat tracking
+        self.last_tick_time = datetime.now(IST)
+
     # -----------------------------------------------------------------------
     # LOGIN
     # -----------------------------------------------------------------------
@@ -248,6 +251,9 @@ class ShoonyaBroker:
 
             }
 
+            # Update heartbeat
+            self.last_tick_time = datetime.now(IST)
+
             log.debug(
                 f"TICK: {symbol_key} -> {ltp}"
             )
@@ -270,6 +276,20 @@ class ShoonyaBroker:
             return None
 
         return tick.get("ltp")
+
+    # -----------------------------------------------------------------------
+    # HEARTBEAT CHECK
+    # -----------------------------------------------------------------------
+
+    def websocket_alive(self):
+
+        diff = (
+            datetime.now(IST)
+            -
+            self.last_tick_time
+        ).seconds
+
+        return diff < 30
 
     # -----------------------------------------------------------------------
     # GET QUOTE
@@ -547,6 +567,106 @@ class ShoonyaBroker:
             }
 
     # -----------------------------------------------------------------------
+    # PLACE STOP LOSS ORDER
+    # -----------------------------------------------------------------------
+
+    def place_sl_order(
+
+        self,
+
+        symbol,
+
+        side,
+
+        qty,
+
+        trigger_price,
+
+        tag="SL_ORDER"
+
+    ):
+
+        # ---------------------------------------------------------------
+        # PAPER MODE
+        # ---------------------------------------------------------------
+
+        if settings.PAPER_TRADE:
+
+            return {
+
+                "success": True,
+
+                "order_id": f"PAPER_SL_{int(time.time())}",
+
+                "message": "Paper SL order"
+
+            }
+
+        # ---------------------------------------------------------------
+        # LIVE MODE
+        # ---------------------------------------------------------------
+
+        try:
+
+            order = self.api.place_order(
+
+                buy_or_sell=side[0],
+
+                product_type="I",
+
+                exchange=settings.EXCHANGE,
+
+                tradingsymbol=symbol,
+
+                quantity=qty,
+
+                discloseqty=0,
+
+                price_type="SL-M",
+
+                trigger_price=trigger_price,
+
+                retention="DAY",
+
+                remarks=tag
+
+            )
+
+            if order and order.get("stat") == "Ok":
+
+                log.info(
+                    f"✅ SL ORDER PLACED: {symbol} @ {trigger_price}"
+                )
+
+                return {
+
+                    "success": True,
+
+                    "order_id": order.get("norenordno"),
+
+                    "message": "SL order placed"
+
+                }
+
+            return {
+
+                "success": False,
+
+                "message": str(order)
+
+            }
+
+        except Exception as e:
+
+            return {
+
+                "success": False,
+
+                "message": str(e)
+
+            }
+
+    # -----------------------------------------------------------------------
     # CANCEL ORDER
     # -----------------------------------------------------------------------
 
@@ -567,6 +687,30 @@ class ShoonyaBroker:
         )
 
         return ret and ret.get("stat") == "Ok"
+
+    # -----------------------------------------------------------------------
+    # GET ORDER STATUS
+    # -----------------------------------------------------------------------
+
+    def get_order_status(self, order_id):
+
+        try:
+
+            ret = self.api.single_order_history(
+                orderno=order_id
+            )
+
+            if ret:
+
+                return ret[0].get("status")
+
+        except Exception as e:
+
+            log.error(
+                f"Order status error: {e}"
+            )
+
+        return None
 
     # -----------------------------------------------------------------------
     # POSITIONS

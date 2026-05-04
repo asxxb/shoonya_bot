@@ -50,6 +50,8 @@ class TradeTracker:
             "stop_loss":   stop_loss,
             "target":      target,
             "order_id":    order_id,
+            "sl_order_id": None,
+            "tp_order_id": None,
             "entry_time":  datetime.now(IST).isoformat(),
             "exit_price":  None,
             "exit_time":   None,

@@ -22,6 +22,7 @@ class RiskManager:
         self.realized_pnl = 0.0
         self.unrealized_pnl = 0.0
         self.blocked = False    # True = no more trades today
+        self.consecutive_losses = 0
 
     # ── Daily Controls ──────────────────────────────────────────────────────────
 
@@ -37,12 +38,19 @@ class RiskManager:
         if self.realized_pnl <= -settings.MAX_DAILY_LOSS:
             self.blocked = True
             return False, f"Daily loss limit hit (₹{settings.MAX_DAILY_LOSS:.1f})"
+        if self.consecutive_losses >= 3:
+            self.blocked = True
+            return False, "3 consecutive losses hit"
         return True, "OK"
 
     def record_trade(self, pnl: float = 0.0):
         """Call after each trade closes."""
         self.trades_today += 1
         self.realized_pnl += pnl
+        if pnl < 0:
+            self.consecutive_losses += 1
+        else:
+            self.consecutive_losses = 0
         log.info(
             f"Trade #{self.trades_today} | PnL: ₹{pnl:+.2f} | "
             f"Daily PnL: ₹{self.realized_pnl:+.2f}"
@@ -53,6 +61,7 @@ class RiskManager:
         self.trades_today = 0
         self.realized_pnl = 0.0
         self.unrealized_pnl = 0.0
+        self.consecutive_losses = 0
         self.blocked = False
         log.info("Risk manager reset for new day.")
 

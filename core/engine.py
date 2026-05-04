@@ -178,6 +178,19 @@ class TradingEngine:
         now = datetime.now(IST)
 
         # -----------------------------------------
+        # HEARTBEAT CHECK
+        # -----------------------------------------
+
+        if not self.broker.websocket_alive():
+            log.warning(
+                "WebSocket heartbeat lost"
+            )
+            telegram.send(
+                "⚠️ WebSocket heartbeat lost"
+            )
+            # Note: reconnect_websocket() would need to be implemented in broker
+
+        # -----------------------------------------
         # TRADING HOURS CHECK
         # -----------------------------------------
 
@@ -389,22 +402,71 @@ class TradingEngine:
 
             fill_price = price
 
-            self.tracker.open_trade(
+            # ---------------------------------------------------
+            # STOP LOSS ORDER SIDE
+            # ---------------------------------------------------
 
-                side=side,
+            sl_side = (
+                "SELL"
+                if side == "BUY"
+                else "BUY"
+            )
 
+            # ---------------------------------------------------
+            # PLACE EXCHANGE SL ORDER
+            # ---------------------------------------------------
+
+            sl_result = self.broker.place_sl_order(
                 symbol=symbol,
-
+                side=sl_side,
                 qty=qty,
+                trigger_price=sl,
+                tag="AUTO_SL"
+            )
 
+            if not sl_result["success"]:
+                log.error(
+                    f"SL order failed: {sl_result['message']}"
+                )
+                return
+
+            # ---------------------------------------------------
+            # VERIFY ORDER FILLS
+            # ---------------------------------------------------
+
+            status = self.broker.get_order_status(
+                result["order_id"]
+            )
+
+            if status != "COMPLETE":
+                log.warning(
+                    f"Order not filled: {status}"
+                )
+                return
+
+            self.tracker.open_trade(
+                side=side,
+                symbol=symbol,
+                qty=qty,
                 entry_price=fill_price,
-
                 stop_loss=sl,
-
                 target=tp,
-
                 order_id=result["order_id"]
+            )
 
+            # Save SL order ID
+            self.tracker.active_trade[
+                "sl_order_id"
+            ] = sl_result["order_id"]
+
+            telegram.send(
+                f"🚀 *TRADE OPENED*\n\n"
+                f"Symbol: {symbol}\n"
+                f"Side: {side}\n"
+                f"Qty: {qty}\n"
+                f"Entry: ₹{fill_price:.2f}\n"
+                f"SL: ₹{sl:.2f}\n"
+                f"TP: ₹{tp:.2f}"
             )
 
         else:
@@ -438,6 +500,20 @@ class TradingEngine:
         if trigger in ("SL", "TP"):
 
             t = self.tracker.active_trade
+
+            # ---------------------------------------------------
+            # CANCEL SL ORDER IF TP HIT
+            # ---------------------------------------------------
+
+            if trigger == "TP":
+
+                sl_order_id = t.get("sl_order_id")
+
+                if sl_order_id:
+
+                    self.broker.cancel_order(
+                        sl_order_id
+                    )
 
             close_side = (
 
