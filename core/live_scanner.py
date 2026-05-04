@@ -1,13 +1,14 @@
 import pandas as pd
 
-from strategies.ema_rsi_scalper import (
-    EmaRsiScalper
-)
-
+from strategies.ema_rsi_scalper import EmaRsiScalper
 from core.broker import ShoonyaBroker
-
 from config import settings
-
+from core.scanner import (
+    PERFORMANCE_DATA,
+    should_include_stock,
+    passes_momentum_filter,
+    compute_score
+)
 from utils.logger import get_logger
 
 log = get_logger()
@@ -16,9 +17,7 @@ log = get_logger()
 class LiveScanner:
 
     def __init__(self):
-
         self.broker = ShoonyaBroker()
-
         self.strategy = EmaRsiScalper()
 
     # ---------------------------------------------------
@@ -97,36 +96,30 @@ class LiveScanner:
                 )
 
                 # -----------------------------------------
-                # Score
+                # STEP 1: QUALITY FILTER (Performance)
                 # -----------------------------------------
-
-                score = 0
-
-                if row["ema20"] > row["ema50"]:
-                    score += 2
-
-                if row["close"] > row["vwap"]:
-                    score += 2
-
-                if row["rsi"] > 50:
-                    score += 2
-
-                if rel_volume > 1:
-                    score += 2
-
-                if change_pct > 0:
-                    score += 2
-
-                if trend_strength > 0.001:
-                    score += 1
+                
+                # Use -EQ suffix to match backtest_results.json keys
+                perf = PERFORMANCE_DATA.get(f"{symbol}-EQ", {})
+                include, reason = should_include_stock(symbol, perf)
+                
+                if not include:
+                    log.debug(f"{symbol}: Skipping - {reason}")
+                    continue
 
                 # -----------------------------------------
-                # Strong Bullish Momentum Only
+                # Score (using shared function)
+                # -----------------------------------------
+
+                score = compute_score(row, rel_volume, change_pct, trend_strength)
+
+                # -----------------------------------------
+                # STEP 2: MOMENTUM FILTER
                 # -----------------------------------------
 
                 if (
-                    score >= 7
-                    and change_pct > 0
+                    score >= settings.SCORE_THRESHOLD
+                    and change_pct >= settings.MIN_MOMENTUM_PCT
                 ):
 
                     results.append({

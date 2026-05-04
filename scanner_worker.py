@@ -12,10 +12,15 @@ from datetime import datetime
 import pandas as pd
 
 from scanner import scan_stock
-
-from core.sentiment import (
-    SentimentAnalyzer
+from core.scanner import (
+    PERFORMANCE_DATA,
+    should_include_stock,
+    passes_momentum_filter
 )
+
+from core.sentiment import SentimentAnalyzer
+
+from config import settings
 
 from utils.logger import get_logger
 
@@ -76,6 +81,18 @@ while True:
 
         for stock in WATCHLIST:
 
+            # ---------------------------------
+            # STEP 1: QUALITY FILTER (Performance)
+            # ---------------------------------
+            
+            # Use -EQ suffix to match backtest_results.json keys
+            perf = PERFORMANCE_DATA.get(f"{stock}-EQ", {})
+            include, reason = should_include_stock(stock, perf)
+            
+            if not include:
+                log.debug(f"{stock}: Skipping - {reason}")
+                continue
+
             result = scan_stock(stock)
 
             if result:
@@ -84,35 +101,16 @@ while True:
                 # SENTIMENT
                 # ---------------------------------
 
-                sentiment = (
+                sentiment = sentiment_analyzer.get_sentiment(stock)
 
-                    sentiment_analyzer
-                    .get_sentiment(stock)
-
-                )
-
-                result["sentiment"] = round(
-                    sentiment,
-                    2
-                )
+                result["sentiment"] = round(sentiment, 2)
 
                 # ---------------------------------
-                # FILTER
+                # STEP 2: MOMENTUM FILTER
                 # ---------------------------------
 
-                if (
-
-                    result["score"] >= 7
-
-                    and
-
-                    result["change_pct"] > 0
-
-                ):
-
-                    scanner_results.append(
-                        result
-                    )
+                if passes_momentum_filter(result["change_pct"], result["score"]):
+                    scanner_results.append(result)
 
         # -----------------------------------------
         # SORT

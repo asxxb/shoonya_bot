@@ -80,3 +80,22 @@ Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_2026
 2026-05-04 22:21:44,193 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_RVNL_EQ.csv
 2026-05-04 22:21:55,779 [INFO    ] 
 Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2221.csv
+2026-05-04 22:26:48,237 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SUZLON_EQ.csv
+2026-05-04 22:26:59,908 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2226.csv
+2026-05-04 22:27:38,958 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_IDFCFIRSTB_EQ.csv
+2026-05-04 22:27:50,302 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2227.csv
+2026-05-04 22:28:05,616 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_IREDA_EQ.csv
+2026-05-04 22:28:16,856 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2228.csv
+2026-05-04 22:28:36,432 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_IRFC_EQ.csv
+2026-05-04 22:28:47,158 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2228.csv
+2026-05-04 22:42:53,836 [INFO    ] Running scanner...
+2026-05-04 22:43:05,281 [ERROR   ] Sentiment error SBIN: HTTPSConnectionPool(host='finnhub.io', port=443): Read timed out. (read timeout=10)
+2026-05-04 22:43:15,981 [ERROR   ] Sentiment error NHPC: HTTPSConnectionPool(host='finnhub.io', port=443): Read timed out. (read timeout=10)
+2026-05-04 22:43:26,517 [ERROR   ] Sentiment error SUZLON: HTTPSConnectionPool(host='finnhub.io', port=443): Read timed out. (read timeout=10)
+2026-05-04 22:43:37,279 [ERROR   ] Sentiment error YESBANK: HTTPSConnectionPool(host='finnhub.io', port=443): Read timed out. (read timeout=10)
+2026-05-04 22:43:58,991 [INFO    ] Scanner complete | 4 stocks
+2026-05-04 22:44:56,851 [INFO    ] Running scanner...

@@ -5,28 +5,25 @@ from ta.trend import EMAIndicator
 from ta.momentum import RSIIndicator
 from ta.volatility import AverageTrueRange
 
+from config import settings
+from core.scanner import (
+    PERFORMANCE_DATA,
+    should_include_stock,
+    passes_momentum_filter,
+    compute_score
+)
+
 # ---------------------------------------------------
-# WATCHLIST
+# WATCHLIST (strip -EQ from settings.WATCHLIST)
 # ---------------------------------------------------
 
-WATCHLIST = [
+# Strip -EQ for yfinance symbol but keep -EQ for performance lookup
+WATCHLIST = [s.replace("-EQ", "") for s in settings.WATCHLIST]
 
-    "SBIN",
-    "NHPC",
-    "SUZLON",
-    "YESBANK",
-    "IDFCFIRSTB",
-    "UCOBANK",
-    "IREDA",
-    "RVNL",
-    "NBCC",
-    "IRFC",
-    "PNB",
-    "BANKBARODA",
-    "SAIL",
-    "JIOFIN"
-
-]
+# Helper to get performance data with -EQ suffix
+def get_performance(stock):
+    """Get performance data using -EQ suffix to match backtest_results.json keys."""
+    return PERFORMANCE_DATA.get(f"{stock}-EQ", {})
 
 # ---------------------------------------------------
 # SCAN SINGLE STOCK
@@ -412,17 +409,22 @@ if __name__ == "__main__":
 
     for stock in WATCHLIST:
 
+        # -----------------------------------------
+        # STEP 1: QUALITY FILTER (Performance)
+        # -----------------------------------------
+        perf = get_performance(stock)
+        include, reason = should_include_stock(stock, perf)
+        
+        if not include:
+            print(f"{stock}: Skipping - {reason}")
+            continue
+
         result = scan_stock(stock)
 
-        # ONLY GOOD SCORES
-        if (
-
-            result
-            and result["score"] >= 7
-            and result["change_pct"] > 0
-
-        ):
-
+        # -----------------------------------------
+        # STEP 2: MOMENTUM FILTER
+        # -----------------------------------------
+        if result and passes_momentum_filter(result["change_pct"], result["score"]):
             results.append(result)
 
     # -----------------------------------------
