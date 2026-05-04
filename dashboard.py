@@ -341,13 +341,46 @@ with tab_overview:
                 else:
                     profit_factor = f"{(wins['pnl'].sum() / abs(losses_sum)):.2f}"
 
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     st.metric("Trades", total_trades)
                 with col2:
                     st.metric("Win Rate", f"{win_rate:.1f}%")
                 with col3:
                     st.metric("Profit Factor", profit_factor)
+                
+                avg_win = wins["pnl"].mean() if not wins.empty else 0
+                avg_loss = losses["pnl"].mean() if not losses.empty else 0
+                expectancy = (win_rate / 100) * avg_win + ((100 - win_rate) / 100) * avg_loss
+                
+                with col4:
+                    st.metric("Expectancy", f"₹{expectancy:.2f}")
+            
+            if "pnl" in trades_df.columns:
+                equity = 0
+                peak = 0
+                max_dd = 0
+                for _, row in trades_df.iterrows():
+                    equity += row["pnl"]
+                    peak = max(peak, equity)
+                    dd = peak - equity
+                    max_dd = max(max_dd, dd)
+                
+                total_pnl = trades_df["pnl"].sum()
+                avg_pnl = trades_df["pnl"].mean()
+                
+                st.markdown("---")
+                st.subheader("📊 Professional Performance Metrics")
+                m1, m2, m3, m4 = st.columns(4)
+                with m1:
+                    st.metric("Total P&L", f"₹{total_pnl:,.2f}")
+                with m2:
+                    st.metric("Avg P&L/Trade", f"₹{avg_pnl:,.2f}")
+                with m3:
+                    st.metric("Max Drawdown", f"₹{max_dd:,.2f}")
+                with m4:
+                    rr = abs(avg_win / avg_loss) if avg_loss != 0 else 0
+                    st.metric("R:R Ratio", f"{rr:.2f}:1")
             else:
                 st.info("Trade records loaded, but 'pnl' column is missing.")
         else:
