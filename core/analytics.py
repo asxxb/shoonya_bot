@@ -4,11 +4,20 @@ from datetime import datetime
 from collections import defaultdict
 
 
-def get_latest_journal():
+def get_latest_data():
     journal_files = glob.glob("data/journal_*.csv")
-    if not journal_files:
+    trades_file = "data/trades.csv"
+    
+    recent_journal = max(journal_files, key=os.path.getmtime) if journal_files else None
+    recent_trades = trades_file if os.path.exists(trades_file) else None
+    
+    if not recent_journal and not recent_trades:
         return None
-    return max(journal_files, key=os.path.getmtime)
+    
+    if recent_journal and recent_trades:
+        return max(recent_journal, recent_trades, key=os.path.getmtime)
+    
+    return recent_journal or recent_trades
 
 
 def load_journal(path: str) -> list[dict]:
@@ -20,11 +29,23 @@ def load_journal(path: str) -> list[dict]:
                 continue
             values = line.strip().split(",")
             trade = dict(zip(header, values))
-            trade["pnl"] = float(trade.get("pnl", 0) or 0)
-            trade["qty"] = int(trade.get("qty", 0) or 0)
-            trade["entry_price"] = float(trade.get("entry_price", 0) or 0)
-            trade["exit_price"] = float(trade.get("exit_price", 0) or 0)
-            trade["stop_loss"] = float(trade.get("stop_loss", 0) or 0)
+            
+            if "entry_price" in trade:
+                trade["pnl"] = float(trade.get("pnl", 0) or 0)
+                trade["qty"] = int(trade.get("qty", 0) or 0)
+                trade["entry_price"] = float(trade.get("entry_price", 0) or 0)
+                trade["exit_price"] = float(trade.get("exit_price", 0) or 0)
+                trade["stop_loss"] = float(trade.get("stop_loss", 0) or 0)
+            else:
+                trade["pnl"] = float(trade.get("pnl", 0) or 0)
+                trade["qty"] = int(trade.get("qty", 0) or 0)
+                trade["entry_price"] = float(trade.get("entry", 0) or 0)
+                trade["exit_price"] = float(trade.get("exit", 0) or 0)
+                trade["side"] = trade.get("side", "")
+                trade["symbol"] = "BACKTEST"
+                trade["exit_reason"] = trade.get("hit", "UNKNOWN")
+                trade["stop_loss"] = 0
+                trade["target"] = 0
             trades.append(trade)
     return trades
 
@@ -45,6 +66,21 @@ def calculate_stats(trades: list[dict]) -> dict:
     avg_win = sum(t["pnl"] for t in wins) / win_count if win_count > 0 else 0
     avg_loss = sum(t["pnl"] for t in losses) / loss_count if loss_count > 0 else 0
     avg_pnl = total_pnl / total_trades if total_trades > 0 else 0
+
+    expectancy = (win_rate / 100) * avg_win + ((100 - win_rate) / 100) * avg_loss
+
+    total_wins = sum(t["pnl"] for t in wins)
+    total_losses = abs(sum(t["pnl"] for t in losses))
+    profit_factor = total_wins / total_losses if total_losses > 0 else 0
+
+    equity = 0
+    peak = 0
+    max_dd = 0
+    for t in trades:
+        equity += t["pnl"]
+        peak = max(peak, equity)
+        dd = peak - equity
+        max_dd = max(max_dd, dd)
 
     rr_ratio = abs(avg_win / avg_loss) if avg_loss != 0 else 0
 
@@ -88,6 +124,9 @@ def calculate_stats(trades: list[dict]) -> dict:
         "avg_pnl": round(avg_pnl, 2),
         "avg_win": round(avg_win, 2),
         "avg_loss": round(avg_loss, 2),
+        "expectancy": round(expectancy, 2),
+        "profit_factor": round(profit_factor, 2),
+        "max_drawdown": round(max_dd, 2),
         "rr_ratio": round(rr_ratio, 2),
         "biggest_win": round(biggest_win, 2),
         "biggest_loss": round(biggest_loss, 2),
@@ -115,7 +154,8 @@ def print_report(trades: list[dict], stats: dict):
     print(f"  📈 Avg P&L/Trade: ₹{stats['avg_pnl']:,.2f}")
 
     print(f"\n  Avg Win: ₹{stats['avg_win']:,.2f} | Avg Loss: ₹{stats['avg_loss']:,.2f}")
-    print(f"  R:R Ratio: {stats['rr_ratio']}:1")
+    print(f"  R:R Ratio: {stats['rr_ratio']}:1 | Expectancy: ₹{stats['expectancy']:,.2f}")
+    print(f"  📊 Profit Factor: {stats['profit_factor']:.2f} | Max Drawdown: ₹{stats['max_drawdown']:,.2f}")
 
     print(f"\n  🏆 Biggest Win: ₹{stats['biggest_win']:,.2f}")
     print(f"  💔 Biggest Loss: ₹{stats['biggest_loss']:,.2f}")
@@ -136,9 +176,9 @@ def print_report(trades: list[dict], stats: dict):
 
 
 def run():
-    path = get_latest_journal()
+    path = get_latest_data()
     if not path:
-        print("No journal files found")
+        print("No data files found")
         return
 
     print(f"Loading: {path}")
