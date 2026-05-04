@@ -66,6 +66,8 @@ RSI_OVERBOUGHT      = _get("RSI_OVERBOUGHT",      default="70",    cast=float)
 RSI_OVERSOLD        = _get("RSI_OVERSOLD",        default="30",    cast=float)
 ATR_PERIOD          = _get("ATR_PERIOD",          default="14",    cast=int)
 ATR_MULTIPLIER      = _get("ATR_MULTIPLIER",      default="1.5",   cast=float)
+TRAIL_ATR_MULT      = _get("TRAIL_ATR_MULT",     default="1.0",   cast=float)  # ATR distance for trailing SL
+TRAIL_ACTIVATE_PCT = _get("TRAIL_ACTIVATE_PCT",default="0.3",   cast=float)  # Profit % to activate trailing
 CANDLE_INTERVAL     = _get("CANDLE_INTERVAL",     default="5",     cast=int)
 
 # ── Mode ───────────────────────────────────────────────────────────────────────
@@ -94,6 +96,8 @@ def summary():
         f"  Max Loss : ₹{MAX_DAILY_LOSS:.1f}/day\n"
         f"  Max Trades: {MAX_TRADES_PER_DAY}/day\n"
         f"  Interval : {CANDLE_INTERVAL}m candles\n"
+        f"  Trail ATR: {TRAIL_ATR_MULT}\n"
+        f"  Trail %  : {TRAIL_ACTIVATE_PCT}%\n"
         f"{'='*50}\n"
     )
 

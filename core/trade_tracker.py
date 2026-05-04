@@ -76,6 +76,7 @@ class TradeTracker:
         stop_loss: float,
         target: float,
         order_id: str,
+        atr: float = 0.0,
     ):
         self.active_trade = {
             "side":        side,
@@ -85,8 +86,10 @@ class TradeTracker:
             "stop_loss":   stop_loss,
             "target":      target,
             "order_id":    order_id,
+            "atr":         atr,
             "sl_order_id": None,
             "tp_order_id": None,
+            "trail_count": 0,
             "entry_time":  datetime.now(IST).isoformat(),
             "exit_price":  None,
             "exit_time":   None,
@@ -155,6 +158,60 @@ class TradeTracker:
 
     def has_open_trade(self) -> bool:
         return self.active_trade is not None
+
+    def calculate_trailing_sl(self, ltp: float, atr: float) -> float | None:
+        """
+        Calculate ATR-based trailing SL.
+        SL moves ONLY in favorable direction.
+        
+        Returns new SL price or None if no update needed.
+        """
+        from config import settings
+        
+        if not self.active_trade:
+            return None
+        
+        t = self.active_trade
+        side = t["side"]
+        entry_price = t["entry_price"]
+        current_sl = t["stop_loss"]
+        
+        profit_pct = 0
+        if side == "BUY":
+            profit_pct = ((ltp - entry_price) / entry_price) * 100
+        else:
+            profit_pct = ((entry_price - ltp) / entry_price) * 100
+        
+        if profit_pct < settings.TRAIL_ACTIVATE_PCT:
+            return None
+        
+        trail_distance = atr * settings.TRAIL_ATR_MULT
+        
+        min_move = atr * 0.3  # Prevent rapid SL changes
+        
+        # OPTIONAL: Move to breakeven first (only once)
+        if profit_pct > 0.3:
+            if side == "BUY" and current_sl < entry_price:
+                log.info(f"🔄 BREAKEVEN: SL ₹{current_sl:.2f} → ₹{entry_price:.2f}")
+                return entry_price
+            elif side == "SELL" and current_sl > entry_price:
+                log.info(f"🔄 BREAKEVEN: SL ₹{current_sl:.2f} → ₹{entry_price:.2f}")
+                return entry_price
+        
+        if side == "BUY":
+            new_sl = ltp - trail_distance
+            if new_sl <= current_sl + min_move:
+                return None
+            t["trail_count"] = t.get("trail_count", 0) + 1
+            log.info(f"🔄 TRAIL BUY: SL ₹{current_sl:.2f} → ₹{new_sl:.2f} | LTP=₹{ltp:.2f}")
+            return new_sl
+        else:
+            new_sl = ltp + trail_distance
+            if new_sl >= current_sl - min_move:
+                return None
+            t["trail_count"] = t.get("trail_count", 0) + 1
+            log.info(f"🔄 TRAIL SELL: SL ₹{current_sl:.2f} → ₹{new_sl:.2f} | LTP=₹{ltp:.2f}")
+            return new_sl
 
     def check_sl_tp(self, ltp: float) -> str | None:
         """

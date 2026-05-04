@@ -457,7 +457,8 @@ class TradingEngine:
                 entry_price=fill_price,
                 stop_loss=sl,
                 target=tp,
-                order_id=result["order_id"]
+                order_id=result["order_id"],
+                atr=atr
             )
 
             # Save SL order ID
@@ -481,6 +482,9 @@ class TradingEngine:
 
     def _manage_open_trade(self, ltp: float):
 
+        t = self.tracker.active_trade
+        atr = t.get("atr", 0.0)
+
         trigger = self.tracker.check_sl_tp(ltp)
 
         log.info(
@@ -495,91 +499,66 @@ class TradingEngine:
 
         if trigger in ("SL", "TP"):
 
-            t = self.tracker.active_trade
-
-            # ---------------------------------------------------
-            # CANCEL SL ORDER (BOTH SL AND TP)
-            # ---------------------------------------------------
-
             sl_order_id = t.get("sl_order_id")
-
             if sl_order_id:
+                self.broker.cancel_order(sl_order_id)
 
-                self.broker.cancel_order(
-                    sl_order_id
-                )
-
-            close_side = (
-
-                "SELL"
-
-                if t["side"] == "BUY"
-
-                else
-
-                "BUY"
-
-            )
+            close_side = "SELL" if t["side"] == "BUY" else "BUY"
 
             result = self.broker.place_order(
-
                 symbol=t["symbol"],
-
                 side=close_side,
-
                 qty=t["qty"],
-
                 order_type="MKT",
-
                 tag=f"EXIT_{trigger}"
-
             )
 
             if result["success"]:
 
-                # -----------------------------------------
-                # STOP LOSS ALERT
-                # -----------------------------------------
-
                 if trigger == "SL":
-
                     telegram.send(
                         f"🛑 *STOP LOSS HIT*\n\n"
                         f"Symbol: {t['symbol']}\n"
                         f"Exit Price: ₹{ltp:.2f}"
                     )
-
-                # -----------------------------------------
-                # TARGET HIT ALERT
-                # -----------------------------------------
-
                 elif trigger == "TP":
-
                     telegram.send(
                         f"🎯 *TARGET HIT*\n\n"
                         f"Symbol: {t['symbol']}\n"
                         f"Exit Price: ₹{ltp:.2f}"
                     )
 
-                pnl = self.tracker.close_trade(
-
-                    ltp,
-
-                    reason=trigger
-
-                )
-
+                pnl = self.tracker.close_trade(ltp, reason=trigger)
                 self.risk.record_trade(pnl)
-
             else:
+                log.error(f"Exit order failed: {result['message']}")
+            return
 
-                log.error(
-
-                    f"Exit order failed: "
-
-                    f"{result['message']}"
-
-                )
+        new_sl = self.tracker.calculate_trailing_sl(ltp, atr)
+        
+        if new_sl is not None:
+            side = "SELL" if t["side"] == "BUY" else "BUY"
+            qty = t["qty"]
+            
+            # Place NEW SL first (safer)
+            sl_result = self.broker.place_sl_order(
+                symbol=t["symbol"],
+                side=side,
+                qty=qty,
+                trigger_price=new_sl,
+                tag="TRAIL_SL"
+            )
+            
+            if sl_result["success"]:
+                # ONLY cancel old SL AFTER new one is placed
+                old_sl_order_id = t.get("sl_order_id")
+                if old_sl_order_id:
+                    self.broker.cancel_order(old_sl_order_id)
+                
+                t["stop_loss"] = new_sl
+                t["sl_order_id"] = sl_result["order_id"]
+                self.tracker._save_active_trade()
+                log.info(f"✅ Trailing SL updated: ₹{new_sl:.2f}")
 
     # ---------------------------------------------------
     # SQUARE OFF
