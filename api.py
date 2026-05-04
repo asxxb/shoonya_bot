@@ -90,21 +90,51 @@ def _read_journal_today() -> list:
 
 
 def _read_trades_history() -> list:
-    """Read full trades history."""
+    """Read full trades history from today's journal + trades.csv."""
+    trades = []
+    
+    # First read today's journal
+    today_trades = _read_journal_today()
+    
+    # Normalize journal fields
+    for t in today_trades:
+        trades.append({
+            "exit_time": t.get("exit_time", ""),
+            "symbol": t.get("symbol", ""),
+            "side": t.get("side", ""),
+            "qty": t.get("qty", ""),
+            "entry_price": t.get("entry_price", ""),
+            "exit_price": t.get("exit_price", ""),
+            "pnl": t.get("pnl", 0),
+            "exit_reason": t.get("exit_reason", ""),
+        })
+    
+    # Also read trades.csv for historical
     trades_file = _get_data_dir() / "trades.csv"
     
-    trades = []
     try:
         if trades_file.exists():
             with open(trades_file, "r") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    if row.get("pnl"):
-                        try:
-                            row["pnl"] = float(row["pnl"])
-                        except (ValueError, TypeError):
-                            row["pnl"] = 0.0
-                    trades.append(row)
+                    pnl = 0
+                    try:
+                        pnl = float(row.get("pnl", 0))
+                    except:
+                        pass
+                    
+                    # Map trades.csv fields to journal format
+                    # trades.csv now includes symbol (added to backtest.py)
+                    trades.append({
+                        "exit_time": row.get("date", ""),
+                        "symbol": row.get("symbol", ""),
+                        "side": row.get("side", ""),
+                        "qty": row.get("qty", ""),
+                        "entry_price": row.get("entry", ""),
+                        "exit_price": row.get("exit", ""),
+                        "pnl": pnl,
+                        "exit_reason": row.get("hit", ""),
+                    })
     except Exception as e:
         log.warning(f"Failed to read trades: {e}")
     
@@ -381,7 +411,7 @@ async def get_equity_data():
 
 @app.get("/api/scanner")
 async def get_scanner_results():
-    """Get scanner results."""
+    """Get scanner results including current best stock."""
     scanner_file = _get_data_dir() / "scanner_results.json"
     
     try:
@@ -391,7 +421,26 @@ async def get_scanner_results():
     except Exception as e:
         log.warning(f"Failed to read scanner: {e}")
     
-    return {"results": [], "last_scan": None}
+    return {"results": [], "current_best": None, "last_scan": None}
+
+
+@app.get("/api/current-stock")
+async def get_current_stock():
+    """Get the current best stock being monitored."""
+    _update_bot_state()
+    
+    # Read from scanner results
+    scanner_file = _get_data_dir() / "scanner_results.json"
+    
+    try:
+        if scanner_file.exists():
+            with open(scanner_file, "r") as f:
+                data = json.load(f)
+                return data.get("current_best", None)
+    except Exception:
+        pass
+    
+    return None
 
 
 @app.post("/api/fetch-data")

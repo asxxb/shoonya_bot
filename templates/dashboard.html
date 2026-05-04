@@ -476,6 +476,14 @@
                     <div class="card-sub" id="trades-today">0 trades today</div>
                 </div>
 
+                <!-- Current Stock (Best stock being considered) -->
+                <div class="card">
+                    <div class="card-title">Current Stock</div>
+                    <div id="current-stock">
+                        <div class="no-trade">Scanning...</div>
+                    </div>
+                </div>
+
                 <!-- Active Trade -->
                 <div class="card">
                     <div class="card-title">Active Trade</div>
@@ -746,6 +754,48 @@
             }
         }
 
+        // Update Current Stock
+        async function updateCurrentStock() {
+            try {
+                const response = await fetch('/api/current-stock', {
+                    signal: AbortSignal.timeout(5000)
+                });
+                
+                if (!response.ok) throw new Error('Current stock API failed');
+                
+                const stock = await response.json();
+                const container = document.getElementById('current-stock');
+                
+                if (!stock) {
+                    container.innerHTML = '<div class="no-trade">No stock selected</div>';
+                    return;
+                }
+                
+                container.innerHTML = `
+                    <div class="trade-info">
+                        <div class="trade-row">
+                            <span class="trade-label">Symbol</span>
+                            <span class="trade-value">${stock.symbol}</span>
+                        </div>
+                        <div class="trade-row">
+                            <span class="trade-label">Score</span>
+                            <span class="trade-value" style="color: var(--accent);">${stock.score}</span>
+                        </div>
+                        <div class="trade-row">
+                            <span class="trade-label">Change</span>
+                            <span class="trade-value" style="color: ${stock.change_pct >= 0 ? 'var(--accent)' : 'var(--accent-red)'}">${stock.change_pct}%</span>
+                        </div>
+                        <div class="trade-row">
+                            <span class="trade-label">RSI</span>
+                            <span class="trade-value">${stock.rsi}</span>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Current stock update failed:', error);
+            }
+        }
+
         // Update PnL
         async function updatePnL() {
             try {
@@ -820,20 +870,26 @@
                 }
                 
                 tbody.innerHTML = trades.map(t => {
-                    const pnl = t.pnl || 0;
+                    const pnl = parseFloat(t.pnl) || 0;
                     const pnlClass = pnl >= 0 ? 'pnl-positive' : 'pnl-negative';
                     const sideClass = t.side === 'BUY' ? 'buy' : 'sell';
+                    
+                    const entryPrice = parseFloat(t.entry_price);
+                    const exitPrice = parseFloat(t.exit_price);
+                    
+                    // Symbol: live trades have it, backtest historical doesn't
+                    const symbol = t.symbol || '-';
                     
                     return `
                         <tr>
                             <td>${formatTime(t.exit_time)}</td>
-                            <td>${t.symbol || '--'}</td>
-                            <td class="trade-value ${sideClass}">${t.side || '--'}</td>
-                            <td>${t.qty || '--'}</td>
-                            <td>₹${parseFloat(t.entry_price || 0).toFixed(2)}</td>
-                            <td>₹${parseFloat(t.exit_price || 0).toFixed(2)}</td>
+                            <td>${symbol}</td>
+                            <td class="trade-value ${sideClass}">${t.side || '-'}</td>
+                            <td>${t.qty || '-'}</td>
+                            <td>${isNaN(entryPrice) ? '-' : '₹' + entryPrice.toFixed(2)}</td>
+                            <td>${isNaN(exitPrice) ? '-' : '₹' + exitPrice.toFixed(2)}</td>
                             <td class="${pnlClass}">${formatINR(pnl)}</td>
-                            <td>${t.exit_reason || '--'}</td>
+                            <td>${t.exit_reason || '-'}</td>
                         </tr>
                     `;
                 }).join('');
@@ -941,6 +997,7 @@
             
             await Promise.all([
                 updateStatus(),
+                updateCurrentStock(),
                 updateTrade(),
                 updatePnL(),
                 updateMetrics(),

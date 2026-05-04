@@ -68,3 +68,15 @@ Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_2026
 Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2202.csv
 2026-05-04 22:04:40,941 [INFO    ] Running scanner...
 2026-05-04 22:05:02,920 [INFO    ] Scanner complete | 5 stocks
+2026-05-04 22:18:25,108 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_IDFCFIRSTB_EQ.csv
+2026-05-04 22:18:36,406 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2218.csv
+2026-05-04 22:19:33,979 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_YESBANK_EQ.csv
+2026-05-04 22:19:45,527 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2219.csv
+2026-05-04 22:21:19,707 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_UCOBANK_EQ.csv
+2026-05-04 22:21:30,717 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2221.csv
+2026-05-04 22:21:44,193 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_RVNL_EQ.csv
+2026-05-04 22:21:55,779 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_2221.csv
