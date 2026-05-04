@@ -419,7 +419,7 @@ if __name__ == "__main__":
 
             result
             and result["score"] >= 7
-            and result["change_pct"] > -0.3
+            and result["change_pct"] > 0
 
         ):
 

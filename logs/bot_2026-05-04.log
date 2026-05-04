@@ -5,3 +5,61 @@
 2026-05-04 06:55:08,812 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SBIN_EQ.csv
 2026-05-04 06:55:19,627 [INFO    ] 
 Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_0655.csv
+2026-05-04 07:07:08,712 [INFO    ] 
+==================================================
+  Mode     : 🔴 LIVE TRADE
+  Symbol   : SBIN-EQ (NSE)
+  Capital  : ₹1,000
+  Risk/Trade: ₹10.0 (1.0%)
+  Max Loss : ₹20.0/day
+  Max Trades: 3/day
+  Interval : 5m candles
+==================================================
+
+2026-05-04 07:07:08,715 [INFO    ] Strategy: 5m VWAP Momentum Strategy
+2026-05-04 07:07:08,715 [ERROR   ] Login error: Non-base32 digit found
+2026-05-04 07:07:08,715 [ERROR   ] Cannot start bot — login failed.
+2026-05-04 07:07:51,772 [INFO    ] 
+==================================================
+  Mode     : 🟡 PAPER TRADE
+  Symbol   : SBIN-EQ (NSE)
+  Capital  : ₹1,000
+  Risk/Trade: ₹10.0 (1.0%)
+  Max Loss : ₹20.0/day
+  Max Trades: 3/day
+  Interval : 5m candles
+==================================================
+
+2026-05-04 07:07:51,773 [INFO    ] Strategy: 5m VWAP Momentum Strategy
+2026-05-04 07:07:51,773 [ERROR   ] Login error: Non-base32 digit found
+2026-05-04 07:07:51,773 [ERROR   ] Cannot start bot — login failed.
+2026-05-04 14:00:12,608 [INFO    ] Running scanner...
+2026-05-04 14:00:25,692 [INFO    ] Scanner complete | 0 stocks
+2026-05-04 14:05:25,690 [INFO    ] Running scanner...
+2026-05-04 14:05:37,428 [INFO    ] Scanner complete | 0 stocks
+2026-05-04 14:10:37,420 [INFO    ] Running scanner...
+2026-05-04 14:10:51,519 [INFO    ] Scanner complete | 1 stocks
+2026-05-04 14:15:51,516 [INFO    ] Running scanner...
+2026-05-04 14:16:04,367 [INFO    ] Scanner complete | 2 stocks
+2026-05-04 14:21:04,364 [INFO    ] Running scanner...
+2026-05-04 14:21:19,349 [INFO    ] Scanner complete | 7 stocks
+2026-05-04 14:22:19,789 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SBIN_EQ.csv
+2026-05-04 14:22:30,642 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_1422.csv
+2026-05-04 14:26:19,346 [INFO    ] Running scanner...
+2026-05-04 14:26:30,238 [INFO    ] Scanner complete | 1 stocks
+2026-05-04 14:31:30,227 [INFO    ] Running scanner...
+2026-05-04 14:31:42,938 [INFO    ] Scanner complete | 0 stocks
+2026-05-04 14:36:42,943 [INFO    ] Running scanner...
+2026-05-04 14:36:57,348 [INFO    ] Scanner complete | 0 stocks
+2026-05-04 14:39:55,167 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_IREDA_EQ.csv
+2026-05-04 14:39:58,707 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_IREDA_EQ.csv
+2026-05-04 14:40:06,189 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_1440.csv
+2026-05-04 14:40:09,689 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_1440.csv
+2026-05-04 14:41:42,405 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_NBCC_EQ.csv
+2026-05-04 14:41:53,252 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_1441.csv
+2026-05-04 14:41:57,346 [INFO    ] Running scanner...
+2026-05-04 14:42:09,977 [INFO    ] Scanner complete | 0 stocks

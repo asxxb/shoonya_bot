@@ -106,7 +106,7 @@ while True:
 
                     and
 
-                    result["change_pct"] > -0.3
+                    result["change_pct"] > 0
 
                 ):
 

@@ -23,12 +23,47 @@ class TradeTracker:
       ENTRY → monitor SL/TP → EXIT → log to CSV
     """
 
+    ACTIVE_TRADE_FILE = os.path.join(DATA_DIR, "active_trade.json")
+
     def __init__(self):
         self.active_trade: dict | None = None
         self._journal_path = os.path.join(
             DATA_DIR, f"journal_{datetime.now(IST).strftime('%Y-%m-%d')}.csv"
         )
         self._ensure_journal_header()
+        
+        # Try to restore active trade from crash recovery
+        self._restore_active_trade()
+
+    # ── Crash Recovery ─────────────────────────────────────────────────────────
+
+    def _save_active_trade(self):
+        """Save active trade to disk for crash recovery."""
+        if self.active_trade:
+            try:
+                with open(self.ACTIVE_TRADE_FILE, "w") as f:
+                    json.dump(self.active_trade, f, indent=2)
+                log.debug(f"Saved active trade: {self.active_trade.get('symbol')}")
+            except Exception as e:
+                log.error(f"Failed to save active trade: {e}")
+
+    def _restore_active_trade(self):
+        """Restore active trade from disk on startup."""
+        if os.path.exists(self.ACTIVE_TRADE_FILE):
+            try:
+                with open(self.ACTIVE_TRADE_FILE, "r") as f:
+                    self.active_trade = json.load(f)
+                log.info(f"Restored active trade: {self.active_trade.get('symbol')}")
+            except Exception as e:
+                log.error(f"Failed to restore active trade: {e}")
+
+    def _clear_active_trade(self):
+        """Clear saved active trade."""
+        try:
+            if os.path.exists(self.ACTIVE_TRADE_FILE):
+                os.remove(self.ACTIVE_TRADE_FILE)
+        except Exception as e:
+            log.error(f"Failed to clear active trade: {e}")
 
     # ── Trade Lifecycle ─────────────────────────────────────────────────────────
 
@@ -58,6 +93,10 @@ class TradeTracker:
             "exit_reason": None,
             "pnl":         None,
         }
+        
+        # Save for crash recovery
+        self._save_active_trade()
+        
         log.info(
             f"📂 Trade OPENED | {side} {qty}×{symbol} @ ₹{entry_price:.2f} | "
             f"SL=₹{stop_loss:.2f} TP=₹{target:.2f}"
@@ -90,6 +129,9 @@ class TradeTracker:
         t["exit_time"]   = datetime.now(IST).isoformat()
         t["exit_reason"] = reason
         t["pnl"]         = round(pnl, 2)
+
+        # Clear crash recovery file
+        self._clear_active_trade()
 
         emoji = "✅" if pnl >= 0 else "❌"
         log.info(

@@ -11,7 +11,6 @@ from datetime import datetime
 
 import pytz
 import schedule
-import importlib
 from config import settings
 
 from core.broker import ShoonyaBroker
@@ -174,7 +173,6 @@ class TradingEngine:
 
     def _tick(self):
         
-        importlib.reload(settings)
         now = datetime.now(IST)
 
         # -----------------------------------------
@@ -188,7 +186,9 @@ class TradingEngine:
             telegram.send(
                 "⚠️ WebSocket heartbeat lost"
             )
-            # Note: reconnect_websocket() would need to be implemented in broker
+            # Attempt reconnection
+            self.broker.reconnect_websocket()
+            return
 
         # -----------------------------------------
         # TRADING HOURS CHECK
@@ -400,7 +400,13 @@ class TradingEngine:
 
         if result["success"]:
 
-            fill_price = price
+            # Get actual fill price from broker
+            fill_price = (
+                self.broker.get_order_fill_price(
+                    result["order_id"]
+                )
+                or price
+            )
 
             # ---------------------------------------------------
             # STOP LOSS ORDER SIDE
@@ -459,16 +465,6 @@ class TradingEngine:
                 "sl_order_id"
             ] = sl_result["order_id"]
 
-            telegram.send(
-                f"🚀 *TRADE OPENED*\n\n"
-                f"Symbol: {symbol}\n"
-                f"Side: {side}\n"
-                f"Qty: {qty}\n"
-                f"Entry: ₹{fill_price:.2f}\n"
-                f"SL: ₹{sl:.2f}\n"
-                f"TP: ₹{tp:.2f}"
-            )
-
         else:
 
             log.error(
@@ -502,18 +498,16 @@ class TradingEngine:
             t = self.tracker.active_trade
 
             # ---------------------------------------------------
-            # CANCEL SL ORDER IF TP HIT
+            # CANCEL SL ORDER (BOTH SL AND TP)
             # ---------------------------------------------------
 
-            if trigger == "TP":
+            sl_order_id = t.get("sl_order_id")
 
-                sl_order_id = t.get("sl_order_id")
+            if sl_order_id:
 
-                if sl_order_id:
-
-                    self.broker.cancel_order(
-                        sl_order_id
-                    )
+                self.broker.cancel_order(
+                    sl_order_id
+                )
 
             close_side = (
 

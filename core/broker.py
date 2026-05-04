@@ -80,6 +80,15 @@ class ShoonyaBroker:
         # Heartbeat tracking
         self.last_tick_time = datetime.now(IST)
 
+        # Reconnection lock
+        self.reconnecting = False
+
+        # WebSocket connection state
+        self.websocket_connected = False
+
+        # Token to symbol mapping
+        self.token_symbol_map = {}
+
     # -----------------------------------------------------------------------
     # LOGIN
     # -----------------------------------------------------------------------
@@ -152,7 +161,14 @@ class ShoonyaBroker:
                 )
 
                 log.info("✅ WebSocket started")
-                time.sleep(2)
+                time.sleep(3)
+
+                if not self.websocket_connected:
+                    log.error(
+                        "WebSocket failed to connect"
+                    )
+                    return False
+
                 # -----------------------------------------------------------
                 # SUBSCRIBE WATCHLIST
                 # -----------------------------------------------------------
@@ -164,7 +180,6 @@ class ShoonyaBroker:
                         symbol,
 
                         settings.EXCHANGE
-
                     )
 
                     if token != "0":
@@ -172,6 +187,8 @@ class ShoonyaBroker:
                         self.api.subscribe(
                             f"{settings.EXCHANGE}|{token}"
                         )
+
+                        self.token_symbol_map[token] = symbol
 
                         log.info(
                             f"Subscribed: {symbol}"
@@ -209,6 +226,8 @@ class ShoonyaBroker:
             "✅ Shoonya WebSocket connected"
         )
 
+        self.websocket_connected = True
+
     # -----------------------------------------------------------------------
     # SOCKET CLOSE CALLBACK
     # -----------------------------------------------------------------------
@@ -218,6 +237,11 @@ class ShoonyaBroker:
         log.warning(
             "⚠️ Shoonya WebSocket disconnected"
         )
+
+        self.websocket_connected = False
+
+        # Auto reconnect
+        self.reconnect_websocket()
 
     # -----------------------------------------------------------------------
     # WEBSOCKET TICK HANDLER
@@ -240,8 +264,18 @@ class ShoonyaBroker:
             if not ltp:
                 return
 
-            # fallback to token
-            symbol_key = symbol or token
+            # Resolve symbol from token mapping
+            symbol_key = (
+                symbol
+                or
+                self.token_symbol_map.get(token)
+            )
+
+            if not symbol_key:
+                log.warning(
+                    f"Could not resolve symbol for tick: {token}"
+                )
+                return
 
             self.live_ticks[symbol_key] = {
 
@@ -290,6 +324,122 @@ class ShoonyaBroker:
         ).seconds
 
         return diff < 30
+
+    # -----------------------------------------------------------------------
+    # RECONNECT WEBSOCKET
+    # -----------------------------------------------------------------------
+
+    def reconnect_websocket(self):
+
+        from utils.telegram import telegram
+
+        # Check if already reconnecting
+        if self.reconnecting:
+            log.warning(
+                "Reconnection already in progress"
+            )
+            return False
+
+        self.reconnecting = True
+
+        log.warning(
+            "Attempting WebSocket reconnection..."
+        )
+
+        telegram.send(
+            "🔄 Reconnecting WebSocket..."
+        )
+
+        # Retry loop - 5 attempts
+        for attempt in range(1, 6):
+
+            try:
+
+                log.info(
+                    f"Reconnect attempt {attempt}/5"
+                )
+
+                # Prevent recursive reconnect
+                self.websocket_connected = False
+
+                # Stop existing websocket safely
+                try:
+                    if hasattr(self.api, "close_websocket"):
+                        self.api.close_websocket()
+                except Exception as e:
+                    log.warning(
+                        f"close_websocket failed: {e}"
+                    )
+
+                time.sleep(2)
+
+                # Restart websocket
+                self.api.start_websocket(
+                    subscribe_callback=self.on_tick_update,
+                    socket_open_callback=self.on_socket_open,
+                    socket_close_callback=self.on_socket_close
+                )
+
+                # Wait for connection
+                time.sleep(3)
+
+                # Verify connection
+                if not self.websocket_connected:
+                    raise Exception(
+                        "WebSocket did not reconnect"
+                    )
+
+                # Resubscribe to watchlist
+                for symbol in settings.WATCHLIST:
+
+                    token = self._get_token(
+                        symbol,
+                        settings.EXCHANGE
+                    )
+
+                    if token != "0":
+                        self.api.subscribe(
+                            f"{settings.EXCHANGE}|{token}"
+                        )
+                        self.token_symbol_map[token] = symbol
+                        log.info(
+                            f"Resubscribed: {symbol}"
+                        )
+
+                # Reset heartbeat
+                self.last_tick_time = datetime.now(IST)
+
+                log.info(
+                    "✅ WebSocket reconnected successfully"
+                )
+
+                telegram.send(
+                    "✅ WebSocket Reconnected"
+                )
+
+                self.reconnecting = False
+                return True
+
+            except Exception as e:
+
+                log.error(
+                    f"Reconnect attempt {attempt} failed: {e}"
+                )
+
+                if attempt < 5:
+                    time.sleep(5)
+
+        # All attempts failed
+        log.error(
+            "WebSocket reconnection failed after 5 attempts"
+        )
+
+        telegram.send(
+            "❌ WebSocket reconnect failed"
+        )
+
+        self.reconnecting = False
+        return False
 
     # -----------------------------------------------------------------------
     # GET QUOTE
@@ -489,18 +639,34 @@ class ShoonyaBroker:
 
         if settings.PAPER_TRADE:
 
+            paper_order_id = f"PAPER_{int(time.time())}"
+
+            # Get current price for paper fill
+            fill_price = self.get_ltp(symbol) or 0.0
+
             log.info(
-                f"[PAPER] {side} {qty} {symbol}"
+                f"[PAPER] {side} {qty} {symbol} @ ₹{fill_price}"
             )
+
+            self._paper_orders.append({
+                "order_id": paper_order_id,
+                "symbol": symbol,
+                "side": side,
+                "qty": qty,
+                "fill_price": fill_price,
+                "tag": tag,
+                "time": datetime.now(IST).isoformat(),
+            })
 
             return {
 
                 "success": True,
 
-                "order_id": f"PAPER_{int(time.time())}",
+                "order_id": paper_order_id,
 
-                "message": "Paper trade executed"
+                "message": "Paper trade executed",
 
+                "fill_price": fill_price
             }
 
         # ---------------------------------------------------------------
@@ -708,6 +874,34 @@ class ShoonyaBroker:
 
             log.error(
                 f"Order status error: {e}"
+            )
+
+        return None
+
+    # -----------------------------------------------------------------------
+    # GET ORDER FILL PRICE
+    # -----------------------------------------------------------------------
+
+    def get_order_fill_price(self, order_id):
+
+        try:
+
+            ret = self.api.single_order_history(
+                orderno=order_id
+            )
+
+            if ret:
+
+                avg_price = ret[0].get("avgprc")
+
+                if avg_price:
+
+                    return float(avg_price)
+
+        except Exception as e:
+
+            log.error(
+                f"Fill price error: {e}"
             )
 
         return None
