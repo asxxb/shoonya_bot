@@ -355,11 +355,17 @@ async def health_check():
 # ============================================================
 
 @app.post("/api/mode")
-async def set_mode(mode: str):
+async def set_mode(request: Request):
     """
     Switch between paper/live mode.
     Usage: POST /api/mode with body {"mode": "paper"} or {"mode": "live"}
     """
+    try:
+        body = await request.json()
+        mode = body.get("mode", "paper")
+    except:
+        mode = "paper"
+    
     if mode not in ("paper", "live"):
         raise HTTPException(status_code=400, detail="Mode must be 'paper' or 'live'")
     
