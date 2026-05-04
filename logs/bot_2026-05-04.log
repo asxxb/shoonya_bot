@@ -2,3 +2,6 @@
 2026-05-04 01:10:03,510 [INFO    ] Running scanner...
 2026-05-04 01:10:14,870 [INFO    ] Scanner complete | 2 stocks
 2026-05-04 01:15:14,867 [INFO    ] Running scanner...
+2026-05-04 06:55:08,812 [INFO    ] Loading cached data from /Users/aseebshibin/personal/shoonya_bot/data/candles_SBIN_EQ.csv
+2026-05-04 06:55:19,627 [INFO    ] 
+Full results saved to /Users/aseebshibin/personal/shoonya_bot/data/backtest_20260504_0655.csv

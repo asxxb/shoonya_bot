@@ -48,7 +48,7 @@ class TelegramNotifier:
 
     def __init__(self):
 
-    self.enabled = settings.TELEGRAM_ENABLED,
+        self.enabled = settings.TELEGRAM_ENABLED,
 
         self.token = settings.TELEGRAM_BOT_TOKEN
 
@@ -113,4 +113,13 @@ class TelegramNotifier:
 
 
 telegram = TelegramNotifier()
+
+
+# ---------------------------------------------------
+# HELPER FUNCTION FOR LEGACY IMPORTS
+# ---------------------------------------------------
+
+def send_telegram(message: str):
+    """Legacy wrapper for backward compatibility."""
+    telegram.send(message)
 
