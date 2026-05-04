@@ -13,12 +13,11 @@ import pandas as pd
 
 from scanner import scan_stock
 from core.scanner import (
-    PERFORMANCE_DATA,
+    get_performance_data,
+    to_internal,
     should_include_stock,
     passes_momentum_filter
 )
-
-from core.sentiment import SentimentAnalyzer
 
 from config import settings
 
@@ -26,24 +25,15 @@ from utils.logger import get_logger
 
 log = get_logger()
 
+# Scanner interval (5 minutes default)
+SCANNER_INTERVAL = 300
+
 # ---------------------------------------------------
-# CONFIG
+# WATCHLIST (use settings.WATCHLIST)
 # ---------------------------------------------------
 
-WATCHLIST = [
-
-    "SBIN",
-    "NHPC",
-    "SUZLON",
-    "YESBANK",
-    "IDFCFIRSTB",
-    "UCOBANK",
-    "IREDA",
-    "RVNL",
-    "NBCC",
-    "IRFC"
-
-]
+# Use settings.WATCHLIST - strip -EQ for yfinance
+WATCHLIST = [s.replace("-EQ", "") for s in settings.WATCHLIST]
 
 DATA_DIR = "data"
 
@@ -61,11 +51,9 @@ RESULT_FILE = os.path.join(
 # MAIN LOOP
 # ---------------------------------------------------
 
-sentiment_analyzer = (
-    SentimentAnalyzer()
-)
-
 while True:
+
+    scan_start = time.time()
 
     try:
 
@@ -74,6 +62,9 @@ while True:
         )
 
         scanner_results = []
+
+        # Get fresh performance data (auto-reload every 5 mins)
+        perf_data = get_performance_data()
 
         # -----------------------------------------
         # SCAN STOCKS
@@ -85,25 +76,25 @@ while True:
             # STEP 1: QUALITY FILTER (Performance)
             # ---------------------------------
             
-            # Use -EQ suffix to match backtest_results.json keys
-            perf = PERFORMANCE_DATA.get(f"{stock}-EQ", {})
-            include, reason = should_include_stock(stock, perf)
+            # Use to_internal for consistent symbol format (returns None if missing)
+            perf = perf_data.get(to_internal(stock))
             
-            if not include:
-                log.debug(f"{stock}: Skipping - {reason}")
-                continue
+            # Handle None (missing) vs valid data
+            if perf is None:
+                if settings.ALLOW_UNKNOWN_STOCKS:
+                    log.debug(f"{stock}: Allowing unknown stock")
+                else:
+                    log.debug(f"{stock}: Skipping - no performance data")
+                    continue
+            else:
+                include, reason = should_include_stock(stock, perf)
+                if not include:
+                    log.debug(f"{stock}: Skipping - {reason}")
+                    continue
 
             result = scan_stock(stock)
 
             if result:
-
-                # ---------------------------------
-                # SENTIMENT
-                # ---------------------------------
-
-                sentiment = sentiment_analyzer.get_sentiment(stock)
-
-                result["sentiment"] = round(sentiment, 2)
 
                 # ---------------------------------
                 # STEP 2: MOMENTUM FILTER
@@ -164,7 +155,10 @@ while True:
         )
 
     # ---------------------------------------------
-    # WAIT
+    # WAIT (rate protection)
     # ---------------------------------------------
 
-    time.sleep(300)
+    elapsed = time.time() - scan_start
+    sleep_time = max(0, SCANNER_INTERVAL - elapsed)
+    log.debug(f"Scan took {elapsed:.1f}s, sleeping {sleep_time:.1f}s")
+    time.sleep(sleep_time)

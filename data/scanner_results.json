@@ -1,5 +1,5 @@
 {
-  "last_scan": "2026-05-04 22:43:58",
+  "last_scan": "2026-05-04 23:04:20",
   "results": [
     {
       "symbol": "RVNL",
@@ -8,8 +8,7 @@
       "rel_volume": 2.21,
       "change_pct": 0.97,
       "trend_strength": 0.0022,
-      "score": 10,
-      "sentiment": 0.0
+      "score": 10
     },
     {
       "symbol": "SUZLON",
@@ -18,8 +17,7 @@
       "rel_volume": 2.44,
       "change_pct": 0.42,
       "trend_strength": 0.0002,
-      "score": 8,
-      "sentiment": 0.0
+      "score": 8
     },
     {
       "symbol": "IREDA",
@@ -28,8 +26,7 @@
       "rel_volume": 2.49,
       "change_pct": 0.31,
       "trend_strength": 0.0013,
-      "score": 7,
-      "sentiment": 0.0
+      "score": 7
     },
     {
       "symbol": "IRFC",
@@ -38,8 +35,7 @@
       "rel_volume": 4.11,
       "change_pct": 0.48,
       "trend_strength": 0.0014,
-      "score": 7,
-      "sentiment": 0.0
+      "score": 7
     }
   ]
 }

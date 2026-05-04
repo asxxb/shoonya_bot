@@ -1,17 +1,24 @@
+import time
+
 import pandas as pd
 
 from strategies.ema_rsi_scalper import EmaRsiScalper
 from core.broker import ShoonyaBroker
 from config import settings
 from core.scanner import (
-    PERFORMANCE_DATA,
+    get_performance_data,
+    to_internal,
     should_include_stock,
     passes_momentum_filter,
-    compute_score
+    compute_score,
+    safe_divide
 )
 from utils.logger import get_logger
 
 log = get_logger()
+
+# Reload performance data every 5 minutes
+PERF_RELOAD_INTERVAL = 300
 
 
 class LiveScanner:
@@ -19,6 +26,9 @@ class LiveScanner:
     def __init__(self):
         self.broker = ShoonyaBroker()
         self.strategy = EmaRsiScalper()
+        # Cache for performance data with refresh
+        self._perf_data = None
+        self._last_reload = 0
 
     # ---------------------------------------------------
     # Scan Stocks
@@ -44,68 +54,60 @@ class LiveScanner:
                 row = df.iloc[-2]
 
                 # -----------------------------------------
-                # Relative Volume
+                # Relative Volume (with division safety)
                 # -----------------------------------------
 
-                rel_volume = (
-
-                    row["volume"]
-
-                    /
-
+                rel_volume = safe_divide(
+                    row["volume"],
                     row["vol_ma"]
-
                 )
 
                 # -----------------------------------------
-                # Momentum %
+                # Momentum % (with division safety)
                 # -----------------------------------------
 
                 old_close = df.iloc[-10]["close"]
 
-                change_pct = (
-
-                    (
-                        row["close"]
-                        -
-                        old_close
-                    )
-
-                    /
-
+                change_pct = safe_divide(
+                    row["close"] - old_close,
                     old_close
-
                 ) * 100
 
                 # -----------------------------------------
-                # Trend Strength
+                # Trend Strength (with division safety)
                 # -----------------------------------------
 
-                trend_strength = (
-
-                    abs(
-                        row["ema20"]
-                        -
-                        row["ema50"]
-                    )
-
-                    /
-
+                trend_strength = safe_divide(
+                    abs(row["ema20"] - row["ema50"]),
                     row["close"]
-
                 )
 
                 # -----------------------------------------
                 # STEP 1: QUALITY FILTER (Performance)
                 # -----------------------------------------
                 
-                # Use -EQ suffix to match backtest_results.json keys
-                perf = PERFORMANCE_DATA.get(f"{symbol}-EQ", {})
-                include, reason = should_include_stock(symbol, perf)
+                # Get fresh performance data (auto-reload every 5 mins)
+                now = time.time()
+                if self._perf_data is None or (now - self._last_reload) > PERF_RELOAD_INTERVAL:
+                    self._perf_data = get_performance_data()
+                    self._last_reload = now
                 
-                if not include:
-                    log.debug(f"{symbol}: Skipping - {reason}")
-                    continue
+                # Cache perf_data for faster lookups
+                perf_data = self._perf_data
+                perf = perf_data.get(to_internal(symbol))  # Returns None if missing
+                
+                # Handle None (missing) vs valid data
+                if perf is None:
+                    if settings.ALLOW_UNKNOWN_STOCKS:
+                        log.debug(f"{symbol}: Allowing unknown stock")
+                    else:
+                        log.debug(f"{symbol}: Skipping - no performance data")
+                        continue
+                else:
+                    include, reason = should_include_stock(symbol, perf)
+                    if not include:
+                        log.debug(f"{symbol}: Skipping - {reason}")
+                        continue
 
                 # -----------------------------------------
                 # Score (using shared function)
@@ -117,10 +119,7 @@ class LiveScanner:
                 # STEP 2: MOMENTUM FILTER
                 # -----------------------------------------
 
-                if (
-                    score >= settings.SCORE_THRESHOLD
-                    and change_pct >= settings.MIN_MOMENTUM_PCT
-                ):
+                if passes_momentum_filter(change_pct, score):
 
                     results.append({
 
