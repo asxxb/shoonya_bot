@@ -66,8 +66,12 @@ RSI_OVERBOUGHT      = _get("RSI_OVERBOUGHT",      default="70",    cast=float)
 RSI_OVERSOLD        = _get("RSI_OVERSOLD",        default="30",    cast=float)
 ATR_PERIOD          = _get("ATR_PERIOD",          default="14",    cast=int)
 ATR_MULTIPLIER      = _get("ATR_MULTIPLIER",      default="1.5",   cast=float)
-TRAIL_ATR_MULT      = _get("TRAIL_ATR_MULT",     default="1.0",   cast=float)  # ATR distance for trailing SL
-TRAIL_ACTIVATE_PCT = _get("TRAIL_ACTIVATE_PCT",default="0.3",   cast=float)  # Profit % to activate trailing
+BREAKEVEN_PCT       = _get("BREAKEVEN_PCT",     default="0.3",   cast=float)  # Move to breakeven at this profit %
+TRAIL_FAST_MULT     = _get("TRAIL_FAST_MULT",   default="0.8",   cast=float)  # Tight trailing multiplier
+TRAIL_SLOW_MULT     = _get("TRAIL_SLOW_MULT",   default="1.2",   cast=float)  # Normal trailing multiplier
+TRAIL_TIGHTEN_PCT   = _get("TRAIL_TIGHTEN_PCT",default="1.0",   cast=float)  # Profit % to activate tight trailing
+TRAIL_ATR_MULT      = _get("TRAIL_ATR_MULT",    default="1.0",   cast=float)  # Legacy - kept for compatibility
+TRAIL_ACTIVATE_PCT  = _get("TRAIL_ACTIVATE_PCT",default="0.3",  cast=float)  # Legacy - kept for compatibility
 CANDLE_INTERVAL     = _get("CANDLE_INTERVAL",     default="5",     cast=int)
 
 # ── Mode ───────────────────────────────────────────────────────────────────────
