@@ -74,6 +74,13 @@ TRAIL_ATR_MULT      = _get("TRAIL_ATR_MULT",    default="1.0",   cast=float)  # 
 TRAIL_ACTIVATE_PCT  = _get("TRAIL_ACTIVATE_PCT",default="0.3",  cast=float)  # Legacy - kept for compatibility
 CANDLE_INTERVAL     = _get("CANDLE_INTERVAL",     default="5",     cast=int)
 
+# ── Scanner Filters ────────────────────────────────────────────────────────────
+MIN_MOMENTUM_PCT    = _get("MIN_MOMENTUM_PCT",   default="0.2",   cast=float)  # Minimum price change %
+MIN_EXPECTANCY      = _get("MIN_EXPECTANCY",     default="0",     cast=float)  # Minimum positive expectancy
+MIN_BACKTEST_TRADES = _get("MIN_BACKTEST_TRADES",default="20",    cast=int)    # Minimum trades for reliable expectancy
+SCORE_THRESHOLD     = _get("SCORE_THRESHOLD",     default="7",     cast=int)    # Minimum score to include
+ALLOW_UNKNOWN_STOCKS= _get("ALLOW_UNKNOWN_STOCKS",default="false", cast=str).lower() == "true"  # Allow stocks without backtest data
+
 # ── Mode ───────────────────────────────────────────────────────────────────────
 # PAPER_TRADE         = _get("PAPER_TRADE",         default="true").lower() == "true"
 PAPER_TRADE = paper_trade_runtime

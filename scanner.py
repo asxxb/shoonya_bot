@@ -5,28 +5,30 @@ from ta.trend import EMAIndicator
 from ta.momentum import RSIIndicator
 from ta.volatility import AverageTrueRange
 
+from config import settings
+from core.scanner import (
+    get_performance_data,
+    to_internal,
+    should_include_stock,
+    passes_momentum_filter,
+    compute_score,
+    safe_divide
+)
+from utils.logger import get_logger
+
+log = get_logger()
+
 # ---------------------------------------------------
-# WATCHLIST
+# WATCHLIST (strip -EQ from settings.WATCHLIST)
 # ---------------------------------------------------
 
-WATCHLIST = [
+# Strip -EQ for yfinance symbol but keep -EQ for performance lookup
+WATCHLIST = [s.replace("-EQ", "") for s in settings.WATCHLIST]
 
-    "SBIN",
-    "NHPC",
-    "SUZLON",
-    "YESBANK",
-    "IDFCFIRSTB",
-    "UCOBANK",
-    "IREDA",
-    "RVNL",
-    "NBCC",
-    "IRFC",
-    "PNB",
-    "BANKBARODA",
-    "SAIL",
-    "JIOFIN"
-
-]
+# Helper to get performance data with -EQ suffix (dynamic)
+def get_performance(stock):
+    """Get performance data using -EQ suffix. Returns None if missing."""
+    return get_performance_data().get(to_internal(stock))
 
 # ---------------------------------------------------
 # SCAN SINGLE STOCK
@@ -39,18 +41,27 @@ def scan_stock(symbol):
         yahoo_symbol = f"{symbol}.NS"
 
         # -----------------------------------------
-        # FETCH DATA
+        # FETCH DATA (with retry)
         # -----------------------------------------
 
-        df = yf.download(
-
-            yahoo_symbol,
-            interval="5m",
-            period="5d",
-            progress=False,
-            auto_adjust=False
-
-        )
+        df = None
+        for _ in range(2):
+            try:
+                df = yf.download(
+                    yahoo_symbol,
+                    interval="5m",
+                    period="5d",
+                    progress=False,
+                    auto_adjust=False
+                )
+                if df is not None and not df.empty:
+                    break
+            except Exception as e:
+                log.debug(f"{symbol}: Retry after error - {e}")
+        
+        if df is None or df.empty:
+            log.debug(f"{symbol}: No data (after retries)")
+            return None
 
         # -----------------------------------------
         # EMPTY CHECK
@@ -58,7 +69,7 @@ def scan_stock(symbol):
 
         if df.empty or len(df) < 60:
 
-            print(f"{symbol}: No data")
+            log.debug(f"{symbol}: No data")
 
             return None
 
@@ -110,7 +121,7 @@ def scan_stock(symbol):
 
         if not set(required_columns).issubset(df.columns):
 
-            print(f"{symbol}: Missing OHLCV")
+            log.debug(f"{symbol}: Missing OHLCV")
 
             return None
 
@@ -243,117 +254,48 @@ def scan_stock(symbol):
         row = df.iloc[-2]
 
         # -----------------------------------------
-        # RELATIVE VOLUME
+        # RELATIVE VOLUME (with division safety)
         # -----------------------------------------
 
-        rel_volume = (
-
-            row["volume"]
-
-            /
-
+        rel_volume = safe_divide(
+            row["volume"],
             row["vol_ma"]
-
         )
 
         # -----------------------------------------
-        # PRICE CHANGE %
+        # PRICE CHANGE % (with division safety)
         # -----------------------------------------
 
         old_close = df.iloc[-10]["close"]
 
-        change_pct = (
-
-            (
-                row["close"] -
-                old_close
-            )
-
-            /
-
+        change_pct = safe_divide(
+            row["close"] - old_close,
             old_close
-
         ) * 100
 
         # -----------------------------------------
-        # TREND STRENGTH
+        # TREND STRENGTH (with division safety)
         # -----------------------------------------
 
-        trend_strength = (
-
-            abs(
-                row["ema20"] -
-                row["ema50"]
-            )
-
-            /
-
+        trend_strength = safe_divide(
+            abs(row["ema20"] - row["ema50"]),
             row["close"]
-
         )
 
         # -----------------------------------------
-        # ATR %
+        # ATR % (with division safety)
         # -----------------------------------------
 
-        atr_pct = (
-
-            row["atr"]
-
-            /
-
+        atr_pct = safe_divide(
+            row["atr"],
             row["close"]
-
         )
 
         # -----------------------------------------
-        # SCORE SYSTEM
+        # SCORE SYSTEM (using shared function)
         # -----------------------------------------
 
-        score = 0
-
-        # EMA Trend
-        if row["ema20"] > row["ema50"]:
-            score += 2
-
-        # Above VWAP
-        if row["close"] > row["vwap"]:
-            score += 2
-
-        # RSI Strength
-        if row["rsi"] > 50:
-            score += 2
-
-        # Relative Volume
-        if rel_volume > 1:
-            score += 2
-
-        # -----------------------------------------
-        # MOMENTUM SCORE
-        # -----------------------------------------
-
-        if change_pct > 2:
-            score += 4
-
-        elif change_pct > 1:
-            score += 3
-
-        elif change_pct > 0.5:
-            score += 2
-
-        elif change_pct > 0:
-            score += 1
-
-        else:
-            score -= 3
-
-        # Strong Trend
-        if trend_strength > 0.001:
-            score += 1
-
-        # Volatility
-        if atr_pct > 0.0005:
-            score += 1
+        score = compute_score(row, rel_volume, change_pct, trend_strength)
 
         # -----------------------------------------
         # RETURN RESULT
@@ -397,7 +339,7 @@ def scan_stock(symbol):
 
     except Exception as e:
 
-        print(f"{symbol} error: {e}")
+        log.debug(f"{symbol} error: {e}")
 
     return None
 
@@ -412,17 +354,30 @@ if __name__ == "__main__":
 
     for stock in WATCHLIST:
 
+        # -----------------------------------------
+        # STEP 1: QUALITY FILTER (Performance)
+        # -----------------------------------------
+        perf = get_performance(stock)
+        
+        # Handle None (missing) vs empty dict vs valid data
+        if perf is None:
+            if settings.ALLOW_UNKNOWN_STOCKS:
+                log.debug(f"{stock}: Allowing unknown stock")
+            else:
+                log.debug(f"{stock}: Skipping - no performance data")
+                continue
+        else:
+            include, reason = should_include_stock(stock, perf)
+            if not include:
+                log.debug(f"{stock}: Skipping - {reason}")
+                continue
+
         result = scan_stock(stock)
 
-        # ONLY GOOD SCORES
-        if (
-
-            result
-            and result["score"] >= 7
-            and result["change_pct"] > 0
-
-        ):
-
+        # -----------------------------------------
+        # STEP 2: MOMENTUM FILTER
+        # -----------------------------------------
+        if result and passes_momentum_filter(result["change_pct"], result["score"]):
             results.append(result)
 
     # -----------------------------------------

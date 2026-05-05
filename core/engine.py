@@ -7,6 +7,7 @@ broker → scanner → strategy → risk → orders → tracking
 """
 
 import time
+import json
 from datetime import datetime
 
 import pytz
@@ -271,6 +272,9 @@ class TradingEngine:
         log.info(
             f"🔥 Selected stock: {symbol}"
         )
+
+        # Save scanner results for API/dashboard
+        self._save_scanner_results(best)
 
         # -----------------------------------------
         # FETCH CANDLES
@@ -627,6 +631,34 @@ class TradingEngine:
     def _daily_reset(self):
 
         self.risk.reset_daily()
+
+    # ---------------------------------------------------
+    # SAVE SCANNER RESULTS
+    # ---------------------------------------------------
+
+    def _save_scanner_results(self, best_stock: dict):
+        """Save scanner results for dashboard."""
+        try:
+            import os
+            data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
+            scanner_file = os.path.join(data_dir, "scanner_results.json")
+            
+            os.makedirs(data_dir, exist_ok=True)
+            
+            # Also run full scan for top stocks
+            all_results = self.scanner.scan()
+            
+            output = {
+                "last_scan": datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
+                "current_best": best_stock,
+                "results": all_results[:10] if all_results else []
+            }
+            
+            with open(scanner_file, "w") as f:
+                json.dump(output, f, indent=2)
+                
+        except Exception as e:
+            log.warning(f"Failed to save scanner results: {e}")
 
     # ---------------------------------------------------
     # TIME CHECK

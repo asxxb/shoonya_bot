@@ -160,6 +160,7 @@ def run_backtest(
 
                 trades.append({
                     "date": row["datetime"],
+                    "symbol": symbol,  # Add symbol
                     "side": side,
                     "entry": round(entry, 2),
                     "exit": round(ltp, 2),
