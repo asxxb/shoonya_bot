@@ -451,7 +451,7 @@ async def get_current_stock():
 
 @app.post("/api/fetch-data")
 async def fetch_stock_data(request: Request):
-    """Fetch stock data via yfinance."""
+    """Fetch stock data via Shoonya API."""
     from datetime import datetime
     
     try:
@@ -461,51 +461,32 @@ async def fetch_stock_data(request: Request):
         stock = "SBIN"
     
     try:
-        import yfinance as yf
+        from core.broker import ShoonyaBroker
         
-        symbol = f"{stock.upper()}.NS"
+        broker = ShoonyaBroker()
         
-        df = yf.download(
-            symbol,
-            interval="5m",
-            period="1mo",
-            progress=False
-        )
+        if not broker.login():
+            return {"success": False, "error": "Login failed"}
+        
+        symbol = f"{stock.upper()}-EQ"
+        
+        df = broker.get_candles(symbol=symbol, lookback_days=30)
         
         if df.empty:
             return {"success": False, "error": "No data fetched"}
         
-        # Handle multiindex columns
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        
-        df = df.reset_index()
-        df = df.rename(columns={
-            "Datetime": "datetime",
-            "Open": "open",
-            "High": "high",
-            "Low": "low",
-            "Close": "close",
-            "Volume": "volume"
-        })
-        
         required = ["datetime", "open", "high", "low", "close", "volume"]
-        if not all(c in df.columns for c in required):
-            return {"success": False, "error": "Missing columns"}
         
         for col in required[1:]:
             df[col] = pd.to_numeric(df[col], errors="coerce")
         
         df = df.dropna(subset=required)
         
-        # Save to CSV
         filename = _get_data_dir() / f"candles_{stock.upper()}_EQ.csv"
         df.to_csv(filename, index=False)
         
         return {"success": True, "candles": len(df)}
         
-    except ImportError:
-        return {"success": False, "error": "yfinance not installed"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 

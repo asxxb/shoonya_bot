@@ -7,7 +7,6 @@ position management, and market data.
 """
 
 import pyotp
-import hashlib
 import time
 import pandas as pd
 
@@ -30,11 +29,18 @@ try:
 
     from NorenRestApiPy.NorenApi import NorenApi
 
+    class ShoonyaApiPy(NorenApi):
+        def __init__(self):
+            super().__init__(
+                host='https://api.shoonya.com/NorenWClientAPI',
+                websocket='wss://api.shoonya.com/NorenWSTP'
+            )
+
 except ImportError:
 
     log.error(
-        "NorenRestApiPy not installed. "
-        "Run: pip install NorenRestApiPy"
+        "NorenRestApiPy not found. "
+        "Install with: pip install NorenRestApiPy"
     )
 
     raise
@@ -52,7 +58,7 @@ class ShoonyaBroker:
     - Position management
     """
 
-    BASE_URL = "https://api.shoonya.com/NorenWClientTP/"
+    BASE_URL = "https://api.shoonya.com/NorenWClientAPI/"
 
     # -----------------------------------------------------------------------
     # INIT
@@ -60,13 +66,10 @@ class ShoonyaBroker:
 
     def __init__(self):
 
-        self.api = NorenApi(
+        self.api = ShoonyaApiPy()
 
-            host=self.BASE_URL,
-
-            websocket="wss://api.shoonya.com/NorenWSTP/",
-
-        )
+        self.api._NorenApi__service_config['host'] = "https://api.shoonya.com/NorenWClientAPI/"
+        self.api._NorenApi__service_config['websocket_endpoint'] = "wss://api.shoonya.com/NorenWSTP/"
 
         self.logged_in = False
 
@@ -107,12 +110,6 @@ class ShoonyaBroker:
 
             ).now()
 
-            pwd_hash = hashlib.sha256(
-
-                settings.SHOONYA_PASSWORD.encode()
-
-            ).hexdigest()
-
             log.info(
 
                 f"Logging into Shoonya as "
@@ -124,7 +121,7 @@ class ShoonyaBroker:
 
                 userid=settings.SHOONYA_USER,
 
-                password=pwd_hash,
+                password=settings.SHOONYA_PASSWORD,
 
                 twoFA=totp,
 
@@ -202,16 +199,24 @@ class ShoonyaBroker:
 
             else:
 
-                log.error(
-                    f"❌ Login failed: {ret}"
-                )
+                emsg = ret.get("emsg", "Unknown error") if ret else "No response"
+
+                if "User Not enabled" in emsg:
+                    log.error(
+                        f"❌ API Access not enabled. "
+                        f"Enable in Shoonya portal: Profile → API Access"
+                    )
+                else:
+                    log.error(
+                        f"❌ Login failed: {emsg}"
+                    )
 
                 return False
 
         except Exception as e:
 
             log.error(
-                f"Login error: {e}"
+                f"Login error: {type(e).__name__}: {e}"
             )
 
             return False
@@ -1008,9 +1013,26 @@ class ShoonyaBroker:
 
             )
 
-    # -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
     # TOKEN LOOKUP
     # -----------------------------------------------------------------------
+
+    TOKEN_FALLBACK = {
+        ("SBIN-EQ", "NSE"): "3045",
+        ("NHPC-EQ", "NSE"): "140783",
+        ("SUZLON-EQ", "NSE"): "543568",
+        ("YESBANK-EQ", "NSE"): "3051",
+        ("IDFCFIRSTB-EQ", "NSE"): "119850",
+        ("UCOBANK-EQ", "NSE"): "5234",
+        ("IREDA-EQ", "NSE"): "543510",
+        ("RVNL-EQ", "NSE"): "4792",
+        ("NBCC-EQ", "NSE"): "18633",
+        ("IRFC-EQ", "NSE"): "5713",
+        ("PNB-EQ", "NSE"): "3066",
+        ("BANKBARODA-EQ", "NSE"): "4668",
+        ("SAIL-EQ", "NSE"): "5421",
+        ("JIOFIN-EQ", "NSE"): "543565",
+    }
 
     def _get_token(
 
@@ -1021,6 +1043,11 @@ class ShoonyaBroker:
         exchange: str
 
     ) -> str:
+
+        # Try fallback first
+        fallback_key = (symbol, exchange)
+        if fallback_key in self.TOKEN_FALLBACK:
+            return self.TOKEN_FALLBACK[fallback_key]
 
         ret = self.api.searchscrip(
 
@@ -1045,7 +1072,9 @@ class ShoonyaBroker:
                 return values[0].get("token", "")
 
         log.warning(
+
             f"Token not found for {symbol}"
+
         )
 
         return "0"
