@@ -1018,20 +1018,16 @@ class ShoonyaBroker:
     # -----------------------------------------------------------------------
 
     TOKEN_FALLBACK = {
+        ("RELIANCE-EQ", "NSE"): "2885",
+        ("HDFCBANK-EQ", "NSE"): "4963",
+        ("ICICIBANK-EQ", "NSE"): "3087",
         ("SBIN-EQ", "NSE"): "3045",
-        ("NHPC-EQ", "NSE"): "140783",
-        ("SUZLON-EQ", "NSE"): "543568",
-        ("YESBANK-EQ", "NSE"): "3051",
-        ("IDFCFIRSTB-EQ", "NSE"): "119850",
-        ("UCOBANK-EQ", "NSE"): "5234",
-        ("IREDA-EQ", "NSE"): "543510",
-        ("RVNL-EQ", "NSE"): "4792",
-        ("NBCC-EQ", "NSE"): "18633",
-        ("IRFC-EQ", "NSE"): "5713",
-        ("PNB-EQ", "NSE"): "3066",
-        ("BANKBARODA-EQ", "NSE"): "4668",
-        ("SAIL-EQ", "NSE"): "5421",
-        ("JIOFIN-EQ", "NSE"): "543565",
+        ("TCS-EQ", "NSE"): "11536",
+        ("INFY-EQ", "NSE"): "1594",
+        ("AXISBANK-EQ", "NSE"): "3110",
+        ("KOTAKBANK-EQ", "NSE"): "3472",
+        ("LT-EQ", "NSE"): "2993",
+        ("BAJFINANCE-EQ", "NSE"): "8113",
     }
 
     def _get_token(

@@ -94,21 +94,32 @@ MAX_DAILY_LOSS      = CAPITAL * MAX_LOSS_PER_DAY_PCT / 100
 MARKET_OPEN_H, MARKET_OPEN_M     = 9, 15
 MARKET_CLOSE_H, MARKET_CLOSE_M   = 15, 30
 TRADING_START_H, TRADING_START_M = 9, 20   # Wait a few mins after open
+TRADING_END_H, TRADING_END_M     = 11, 30  # End trading at 11:30 AM
 SQUARE_OFF_H, SQUARE_OFF_M       = 15, 15  # Square off before close
+
+# ── ORB + VWAP Strategy Settings ──────────────────────────────────────────────
+ORB_MINUTES           = _get("ORB_MINUTES",           default="15",    cast=int)
+VOLUME_MULTIPLIER     = _get("VOLUME_MULTIPLIER",     default="1.5",   cast=float)
+PARTIAL_EXIT_RR       = _get("PARTIAL_EXIT_RR",       default="1.0",   cast=float)  # Exit 50% at this RR
+DAILY_LOSS_LOCK       = _get("DAILY_LOSS_LOCK",       default="500",   cast=float)  # Stop if daily loss exceeds
+
+# ── Nifty Filter ──────────────────────────────────────────────────────────────
+NIFTY_SYMBOL          = _get("NIFTY_SYMBOL",          default="NIFTY 50-EQ")
 
 def summary():
     mode = "🟡 PAPER TRADE" if PAPER_TRADE else "🔴 LIVE TRADE"
     return (
         f"\n{'='*50}\n"
-        f"  Mode     : {mode}\n"
-        f"  Symbol   : {SYMBOL} ({EXCHANGE})\n"
-        f"  Capital  : ₹{CAPITAL:,.0f}\n"
-        f"  Risk/Trade: ₹{RISK_AMOUNT:.1f} ({RISK_PER_TRADE_PCT}%)\n"
-        f"  Max Loss : ₹{MAX_DAILY_LOSS:.1f}/day\n"
-        f"  Max Trades: {MAX_TRADES_PER_DAY}/day\n"
-        f"  Interval : {CANDLE_INTERVAL}m candles\n"
-        f"  Trail ATR: {TRAIL_ATR_MULT}\n"
-        f"  Trail %  : {TRAIL_ACTIVATE_PCT}%\n"
+        f"  Mode        : {mode}\n"
+        f"  Symbol      : {SYMBOL} ({EXCHANGE})\n"
+        f"  Capital     : ₹{CAPITAL:,.0f}\n"
+        f"  Risk/Trade  : ₹{RISK_AMOUNT:.1f} ({RISK_PER_TRADE_PCT}%)\n"
+        f"  Max Loss    : ₹{MAX_DAILY_LOSS:.1f}/day\n"
+        f"  Max Trades  : {MAX_TRADES_PER_DAY}/day\n"
+        f"  Strategy    : ORB+VWAP ({ORB_MINUTES}m)\n"
+        f"  Trading     : {TRADING_START_H:02d}:{TRADING_START_M:02d} - {TRADING_END_H:02d}:{TRADING_END_M:02d}\n"
+        f"  Volume x    : {VOLUME_MULTIPLIER}\n"
+        f"  Partial Exit: {PARTIAL_EXIT_RR} RR\n"
         f"{'='*50}\n"
     )
 
@@ -121,22 +132,16 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 
 WATCHLIST = [
-
+    "RELIANCE-EQ",
+    "HDFCBANK-EQ",
+    "ICICIBANK-EQ",
     "SBIN-EQ",
-    "NHPC-EQ",
-    "SUZLON-EQ",
-    "YESBANK-EQ",
-    "IDFCFIRSTB-EQ",
-    "UCOBANK-EQ",
-    "IREDA-EQ",
-    "RVNL-EQ",
-    "NBCC-EQ",
-    "IRFC-EQ",
-    "PNB-EQ",
-    "BANKBARODA-EQ",
-    "SAIL-EQ",
-    "JIOFIN-EQ"
-
+    "TCS-EQ",
+    "INFY-EQ",
+    "AXISBANK-EQ",
+    "KOTAKBANK-EQ",
+    "LT-EQ",
+    "BAJFINANCE-EQ"
 ]
 
 FINNHUB_API_KEY = os.getenv(

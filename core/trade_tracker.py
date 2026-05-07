@@ -78,10 +78,14 @@ class TradeTracker:
         order_id: str,
         atr: float = 0.0,
     ):
+        from config import settings
+        partial_exit_rr = getattr(settings, 'PARTIAL_EXIT_RR', 1.0)
+        
         self.active_trade = {
             "side":        side,
             "symbol":      symbol,
             "qty":         qty,
+            "original_qty": qty,
             "entry_price": entry_price,
             "stop_loss":   stop_loss,
             "target":      target,
@@ -95,6 +99,11 @@ class TradeTracker:
             "exit_time":   None,
             "exit_reason": None,
             "pnl":         None,
+            "partial_exited": False,
+            "partial_exit_price": None,
+            "partial_exit_qty": 0,
+            "partial_rr": partial_exit_rr,
+            "moved_to_breakeven": False,
         }
         
         # Save for crash recovery
@@ -241,6 +250,82 @@ class TradeTracker:
             if ltp <= t["target"]:
                 return "TP"
         return None
+
+    def should_partial_exit(self, ltp: float) -> bool:
+        """
+        Check if we should trigger partial exit at 1:1 RR.
+        Returns True if partial exit should be executed.
+        """
+        if not self.active_trade:
+            return False
+        
+        t = self.active_trade
+        
+        if t.get("partial_exited", False):
+            return False
+        
+        side = t["side"]
+        entry = t["entry_price"]
+        rr_target = t.get("partial_rr", 1.0)
+        
+        if side == "BUY":
+            risk = entry - t["stop_loss"]
+            reward = ltp - entry
+            rr = reward / risk if risk > 0 else 0
+            return rr >= rr_target
+        else:
+            risk = t["stop_loss"] - entry
+            reward = entry - ltp
+            rr = reward / risk if risk > 0 else 0
+            return rr >= rr_target
+
+    def execute_partial_exit(self, exit_price: float) -> dict:
+        """
+        Execute partial exit (50% of position).
+        Returns info about the partial exit.
+        """
+        if not self.active_trade:
+            return {"success": False, "message": "No active trade"}
+        
+        t = self.active_trade
+        original_qty = t["original_qty"]
+        partial_qty = original_qty // 2
+        remaining_qty = original_qty - partial_qty
+        
+        if t["side"] == "BUY":
+            pnl = (exit_price - t["entry_price"]) * partial_qty
+        else:
+            pnl = (t["entry_price"] - exit_price) * partial_qty
+        
+        t["partial_exited"] = True
+        t["partial_exit_price"] = exit_price
+        t["partial_exit_qty"] = partial_qty
+        t["qty"] = remaining_qty
+        t["moved_to_breakeven"] = True
+        t["stop_loss"] = t["entry_price"]
+        
+        self._save_active_trade()
+        
+        log.info(
+            f"✂️ PARTIAL EXIT | {t['side']} {partial_qty}×{t['symbol']} @ ₹{exit_price:.2f} | "
+            f"Locked ₹{pnl:.2f} | Remaining: {remaining_qty}"
+        )
+        
+        telegram.send(
+            f"✂️ *PARTIAL EXIT*\n\n"
+            f"Symbol: {t['symbol']}\n"
+            f"Exited: {partial_qty} @ ₹{exit_price:.2f}\n"
+            f"Locked PnL: ₹{pnl:+.2f}\n"
+            f"Remaining: {remaining_qty} @ BE"
+        )
+        
+        return {
+            "success": True,
+            "partial_qty": partial_qty,
+            "exit_price": exit_price,
+            "pnl": pnl,
+            "remaining_qty": remaining_qty
+        }
 
     def current_trade_info(self) -> str:
         if not self.active_trade:

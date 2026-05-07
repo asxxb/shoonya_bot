@@ -19,8 +19,8 @@ from core.live_scanner import LiveScanner
 from core.risk_manager import RiskManager
 from core.trade_tracker import TradeTracker
 
-from strategies.ema_rsi_scalper import (
-    EmaRsiScalper,
+from strategies.orb_vwap_strategy import (
+    OrbVwapStrategy,
     SIGNAL_LONG,
     SIGNAL_SHORT,
 )
@@ -45,7 +45,7 @@ class TradingEngine:
 
         self.tracker = TradeTracker()
 
-        self.strategy = EmaRsiScalper()
+        self.strategy = OrbVwapStrategy()
 
         self.running = False
 
@@ -538,6 +538,21 @@ class TradingEngine:
                 log.error(f"Exit order failed: {result['message']}")
             return
 
+        # ── Partial Exit Check ──
+        if self.tracker.should_partial_exit(ltp):
+            partial = self.tracker.execute_partial_exit(ltp)
+            if partial["success"]:
+                # Exit 50% position
+                close_side = "SELL" if t["side"] == "BUY" else "BUY"
+                self.broker.place_order(
+                    symbol=t["symbol"],
+                    side=close_side,
+                    qty=partial["partial_qty"],
+                    order_type="MKT",
+                    tag="PARTIAL_EXIT"
+                )
+                return
+
         new_sl = self.tracker.calculate_trailing_sl(ltp, atr)
         
         if new_sl is not None:
@@ -681,9 +696,9 @@ class TradingEngine:
 
         stop = (
 
-            settings.SQUARE_OFF_H,
+            settings.TRADING_END_H,
 
-            settings.SQUARE_OFF_M
+            settings.TRADING_END_M
 
         )
 

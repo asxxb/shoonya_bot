@@ -4,6 +4,7 @@ Position sizing, daily loss limits, and trade guards.
 """
 from config import settings
 from utils.logger import get_logger
+from utils.telegram import telegram
 
 log = get_logger()
 
@@ -31,13 +32,20 @@ class RiskManager:
         Returns (allowed: bool, reason: str).
         Call this before every order attempt.
         """
+        daily_loss_lock = getattr(settings, 'DAILY_LOSS_LOCK', 500)
+        
         if self.blocked:
             return False, "Trading blocked for today"
         if self.trades_today >= settings.MAX_TRADES_PER_DAY:
             return False, f"Max trades reached ({settings.MAX_TRADES_PER_DAY})"
         if self.realized_pnl <= -settings.MAX_DAILY_LOSS:
             self.blocked = True
+            telegram.send(f"🛑 *Daily Loss Limit Hit*\n\nTrading blocked for today.")
             return False, f"Daily loss limit hit (₹{settings.MAX_DAILY_LOSS:.1f})"
+        if self.realized_pnl <= -daily_loss_lock:
+            self.blocked = True
+            telegram.send(f"🛑 *Daily Loss Lock Triggered*\n\nTrading blocked for today.")
+            return False, f"Daily loss lock triggered (₹{daily_loss_lock:.1f})"
         if self.consecutive_losses >= 3:
             self.blocked = True
             return False, "3 consecutive losses hit"
