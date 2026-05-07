@@ -168,12 +168,17 @@ class TradeTracker:
     def has_open_trade(self) -> bool:
         return self.active_trade is not None
 
-    def calculate_trailing_sl(self, ltp: float, atr: float) -> float | None:
+    def calculate_trailing_sl(self, ltp: float, atr: float, vwap: float = None) -> float | None:
         """
-        3-Phase Professional Trailing System:
+        3-Phase Professional Trailing System with VWAP anchor:
         Phase 1: Risk protection (break-even)
-        Phase 2: Smart trailing (lock profits)
+        Phase 2: VWAP-based trailing (institutional support/resistance)
         Phase 3: Let winners run
+        
+        Args:
+            ltp: Current market price
+            atr: ATR value for volatility-based trailing
+            vwap: Optional VWAP for stronger trailing anchor
         """
         from config import settings
 
@@ -190,6 +195,7 @@ class TradeTracker:
         else:
             profit_pct = ((entry - ltp) / entry) * 100
 
+        # ── Phase 1: Move to breakeven ──
         if profit_pct >= settings.BREAKEVEN_PCT:
             if current_sl == entry:
                 pass
@@ -202,6 +208,7 @@ class TradeTracker:
         else:
             return None
 
+        # ── Phase 2: Trailing with VWAP anchor ──
         if profit_pct >= settings.TRAIL_TIGHTEN_PCT:
             trail_mult = settings.TRAIL_FAST_MULT
         else:
@@ -211,23 +218,48 @@ class TradeTracker:
         min_move = atr * 0.3
 
         if side == "BUY":
-            new_sl = max(ltp - trail_distance, entry)
+            # ATR-based trailing
+            atr_trailing = ltp - trail_distance
+            
+            # VWAP anchor (if available, use higher of ATR trail or VWAP)
+            if vwap and vwap > atr_trailing:
+                vwap_anchor = vwap
+            else:
+                vwap_anchor = None
+            
+            # Use the better of ATR trail or VWAP
+            if vwap_anchor:
+                new_sl = max(atr_trailing, vwap_anchor, entry)
+            else:
+                new_sl = max(atr_trailing, entry)
+                
             if new_sl <= current_sl + min_move:
                 return None
             t["trail_count"] = t.get("trail_count", 0) + 1
             log.info(
                 f"🔄 TRAIL BUY → {current_sl:.2f} → {new_sl:.2f} | "
-                f"PCT={profit_pct:.2f}%"
+                f"PCT={profit_pct:.2f}% | VWAP={vwap_anchor if vwap_anchor else 'N/A'}"
             )
             return new_sl
-        else:
-            new_sl = min(ltp + trail_distance, entry)
+        else:  # SELL
+            atr_trailing = ltp + trail_distance
+            
+            if vwap and vwap < atr_trailing:
+                vwap_anchor = vwap
+            else:
+                vwap_anchor = None
+            
+            if vwap_anchor:
+                new_sl = min(atr_trailing, vwap_anchor, entry)
+            else:
+                new_sl = min(atr_trailing, entry)
+                
             if new_sl >= current_sl - min_move:
                 return None
             t["trail_count"] = t.get("trail_count", 0) + 1
             log.info(
                 f"🔄 TRAIL SELL → {current_sl:.2f} → {new_sl:.2f} | "
-                f"PCT={profit_pct:.2f}%"
+                f"PCT={profit_pct:.2f}% | VWAP={vwap_anchor if vwap_anchor else 'N/A'}"
             )
             return new_sl
 

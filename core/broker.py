@@ -522,6 +522,72 @@ class ShoonyaBroker:
         return q["ltp"] if q else None
 
     # -----------------------------------------------------------------------
+    # GET NIFTY VWAP FOR MARKET DIRECTION FILTER
+    # -----------------------------------------------------------------------
+
+    def get_nifty_vwap(self) -> float | None:
+        """
+        Get Nifty 50 VWAP for market direction filtering.
+        Returns None if unavailable.
+        """
+        try:
+            df = self.get_candles(
+                symbol="NIFTY 50-EQ",
+                lookback_days=1
+            )
+            
+            if df.empty or "close" not in df.columns:
+                return None
+            
+            typical_price = (df["high"] + df["low"] + df["close"]) / 3
+            tpv = typical_price * df["volume"]
+            
+            vwap = tpv.cumsum() / df["volume"].cumsum()
+            
+            if len(vwap) > 0:
+                return round(vwap.iloc[-1], 2)
+            
+            return None
+            
+        except Exception as e:
+            log.warning(f"Failed to get Nifty VWAP: {e}")
+            return None
+
+    # -----------------------------------------------------------------------
+    # GET NIFTY LTP
+    # -----------------------------------------------------------------------
+
+    def get_nifty_ltp(self) -> float | None:
+        """Get Nifty 50 current price."""
+        return self.get_ltp("NIFTY 50-EQ")
+
+    # -----------------------------------------------------------------------
+    # GET INDIA VIX
+    # -----------------------------------------------------------------------
+
+    def get_india_vix(self) -> float | None:
+        """
+        Get India VIX value for adaptive position sizing.
+        Returns None if unavailable.
+        """
+        try:
+            df = self.get_candles(
+                symbol="INDIA VIX-EQ",
+                lookback_days=1
+            )
+            
+            if df.empty or "close" not in df.columns:
+                return None
+            
+            # Return latest close as VIX value
+            vix = df["close"].iloc[-1]
+            return round(float(vix), 2)
+            
+        except Exception as e:
+            log.debug(f"Failed to get India VIX: {e}")
+            return None
+
+    # -----------------------------------------------------------------------
     # GET HISTORICAL CANDLES
     # -----------------------------------------------------------------------
 
@@ -1018,6 +1084,7 @@ class ShoonyaBroker:
     # -----------------------------------------------------------------------
 
     TOKEN_FALLBACK = {
+        # High liquidity stocks
         ("RELIANCE-EQ", "NSE"): "2885",
         ("HDFCBANK-EQ", "NSE"): "4963",
         ("ICICIBANK-EQ", "NSE"): "3087",
@@ -1028,6 +1095,9 @@ class ShoonyaBroker:
         ("KOTAKBANK-EQ", "NSE"): "3472",
         ("LT-EQ", "NSE"): "2993",
         ("BAJFINANCE-EQ", "NSE"): "8113",
+        # Indices
+        ("NIFTY 50-EQ", "NSE"): "26009",
+        ("NIFTY BANK-EQ", "NSE"): "26017",
     }
 
     def _get_token(

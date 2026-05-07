@@ -293,10 +293,25 @@ class TradingEngine:
             return
 
         # -----------------------------------------
+        # MARKET DIRECTION FILTER (Nifty VWAP)
+        # -----------------------------------------
+
+        nifty_vwap = self.broker.get_nifty_vwap()
+        nifty_ltp = self.broker.get_nifty_ltp()
+
+        if nifty_vwap:
+            log.info(
+                f"📊 Nifty: ₹{nifty_ltp:.2f} | VWAP: ₹{nifty_vwap:.2f} | "
+                f"Direction: {'🟢 BULLISH' if nifty_ltp > nifty_vwap else '🔴 BEARISH'}"
+            )
+        else:
+            log.debug("Nifty VWAP unavailable, proceeding without filter")
+
+        # -----------------------------------------
         # STRATEGY SIGNAL
         # -----------------------------------------
 
-        signal, info = self.strategy.get_signal(df)
+        signal, info = self.strategy.get_signal(df, nifty_vwap=nifty_vwap)
 
         if signal == SIGNAL_LONG:
 
@@ -351,6 +366,15 @@ class TradingEngine:
     ):
 
         # -----------------------------------------
+        # GET VIX FOR ADAPTIVE SIZING
+        # -----------------------------------------
+
+        vix = self.broker.get_india_vix()
+        
+        if vix:
+            log.info(f"📊 India VIX: {vix:.2f}")
+
+        # -----------------------------------------
         # POSITION SIZING
         # -----------------------------------------
 
@@ -359,7 +383,8 @@ class TradingEngine:
             qty, sl, tp = (
                 self.risk.calculate_qty(
                     price,
-                    atr
+                    atr,
+                    vix=vix
                 )
             )
 
@@ -368,7 +393,8 @@ class TradingEngine:
             qty, sl, tp = (
                 self.risk.calculate_short_qty(
                     price,
-                    atr
+                    atr,
+                    vix=vix
                 )
             )
 
@@ -553,7 +579,18 @@ class TradingEngine:
                 )
                 return
 
-        new_sl = self.tracker.calculate_trailing_sl(ltp, atr)
+        # ── Get current candle VWAP for trailing ──
+        vwap = None
+        try:
+            candle_df = self.broker.get_candles(symbol=t["symbol"], lookback_days=1)
+            if not candle_df.empty and "close" in candle_df.columns:
+                typical_price = (candle_df["high"] + candle_df["low"] + candle_df["close"]) / 2
+                tpv = typical_price * candle_df["volume"]
+                vwap = (tpv.cumsum() / candle_df["volume"].cumsum()).iloc[-1]
+        except Exception as e:
+            log.debug(f"Failed to get VWAP for trailing: {e}")
+
+        new_sl = self.tracker.calculate_trailing_sl(ltp, atr, vwap=vwap)
         
         if new_sl is not None:
             side = "SELL" if t["side"] == "BUY" else "BUY"

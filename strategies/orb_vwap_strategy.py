@@ -151,7 +151,7 @@ class OrbVwapStrategy:
             volume_spike and
             atr_pct > 0.001
         )
-        
+
         short_conditions = (
             close < orb_low and
             close < vwap and
@@ -160,7 +160,7 @@ class OrbVwapStrategy:
             volume_spike and
             atr_pct > 0.001
         )
-        
+
         if nifty_vwap is not None:
             if long_conditions and close > nifty_vwap:
                 signal = SIGNAL_LONG
@@ -171,6 +171,15 @@ class OrbVwapStrategy:
                 signal = SIGNAL_LONG
             elif short_conditions:
                 signal = SIGNAL_SHORT
+
+        # ── Trend Strength Check (Multi-Timeframe Proxy) ──
+        # Strong trend = EMA spread > 0.5% of price
+        trend_strength = abs(row["ema20"] - row["ema50"]) / close * 100
+        trend_aligned = trend_strength > 0.3
+        
+        if signal != SIGNAL_NONE and not trend_aligned:
+            log.info(f"Weak trend strength ({trend_strength:.2f}%), rejecting signal")
+            signal = SIGNAL_NONE
         
         info = {
             "close": round(close, 2),
@@ -189,6 +198,8 @@ class OrbVwapStrategy:
             "orb_low_broken": close < orb_low,
             "above_vwap": close > vwap,
             "below_vwap": close < vwap,
+            "trend_strength": round(trend_strength, 3),
+            "trend_aligned": trend_aligned,
         }
         
         log.debug(

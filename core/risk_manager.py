@@ -75,10 +75,15 @@ class RiskManager:
 
     # ── Position Sizing ─────────────────────────────────────────────────────────
 
-    def calculate_qty(self, entry_price: float, atr: float) -> tuple[int, float, float]:
+    def calculate_qty(self, entry_price: float, atr: float, vix: float = None) -> tuple[int, float, float]:
         """
-        ATR-based position sizing.
+        ATR-based position sizing with VIX-adaptive sizing.
 
+        Args:
+            entry_price: Entry price
+            atr: ATR value for SL distance
+            vix: Optional India VIX value for adaptive sizing
+            
         Returns:
             qty        : number of shares to buy
             stop_loss  : SL price
@@ -88,8 +93,28 @@ class RiskManager:
         if sl_distance <= 0:
             sl_distance = entry_price * 0.01  # fallback: 1% SL
 
+        # ── VIX Adaptive Sizing ──
+        position_mult = 1.0
+        
+        if vix:
+            if vix > 22:
+                # High volatility - reduce position by 50%
+                position_mult = 0.5
+                log.info(f"⚠️ High VIX ({vix:.1f}) - Reducing position to 50%")
+            elif vix > 18:
+                # Elevated volatility - reduce by 25%
+                position_mult = 0.75
+                log.info(f"⚠️ Elevated VIX ({vix:.1f}) - Reducing position to 75%")
+            elif vix < 11:
+                # Very low VIX - can increase position
+                position_mult = 1.25
+                log.info(f"📉 Low VIX ({vix:.1f}) - Increasing position to 125%")
+        
+        # Apply position multiplier to risk
+        effective_risk = settings.RISK_AMOUNT * position_mult
+        
         # Qty = Risk Amount / SL distance (floored to integer)
-        qty = max(1, int(settings.RISK_AMOUNT / sl_distance))
+        qty = max(1, int(effective_risk / sl_distance))
 
         # Ensure we don't exceed capital
         max_qty_by_capital = max(1, int(settings.CAPITAL / entry_price))
@@ -101,17 +126,30 @@ class RiskManager:
         log.debug(
             f"Sizing: entry={entry_price:.2f} atr={atr:.2f} "
             f"sl_dist={sl_distance:.2f} qty={qty} "
-            f"SL={stop_loss} TP={target}"
+            f"VIX_mult={position_mult} SL={stop_loss} TP={target}"
         )
         return qty, stop_loss, target
 
-    def calculate_short_qty(self, entry_price: float, atr: float) -> tuple[int, float, float]:
+    def calculate_short_qty(self, entry_price: float, atr: float, vix: float = None) -> tuple[int, float, float]:
         """Same as above but for short (sell) trades."""
         sl_distance = atr * settings.ATR_MULTIPLIER
         if sl_distance <= 0:
             sl_distance = entry_price * 0.01
-
-        qty = max(1, int(settings.RISK_AMOUNT / sl_distance))
+        
+        # VIX Adaptive Sizing
+        position_mult = 1.0
+        
+        if vix:
+            if vix > 22:
+                position_mult = 0.5
+            elif vix > 18:
+                position_mult = 0.75
+            elif vix < 11:
+                position_mult = 1.25
+        
+        effective_risk = settings.RISK_AMOUNT * position_mult
+        
+        qty = max(1, int(effective_risk / sl_distance))
         max_qty_by_capital = max(1, int(settings.CAPITAL / entry_price))
         qty = min(qty, max_qty_by_capital)
 
